@@ -90,6 +90,21 @@
     <div class="card"><span class="card-label">Total pagado</span><span class="card-value" id="out-total">—</span></div>
     <div class="card"><span class="card-label">% intereses</span><span class="card-value" id="out-pct">—</span></div>
   </section>
+
+  <section class="panel">
+    <h2>Cuadro de amortización anual</h2>
+    <div class="table-wrap">
+      <table id="schedule">
+        <thead>
+          <tr>
+            <th>Año</th><th>Cuota anual</th><th>Intereses</th><th>Principal</th>
+            <th>Capital pendiente</th><th>Intereses acum.</th><th>Principal acum.</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -182,6 +197,20 @@ function readInputs() {
   return { principal, years, rate, valid: !errors.principal && !errors.years && !errors.rate };
 }
 
+function renderTable(principal, rate, years) {
+  const rows = aggregateByYear(buildSchedule(principal, rate, years));
+  document.querySelector('#schedule tbody').innerHTML = rows.map((r) => `
+    <tr>
+      <td>${r.year}</td>
+      <td>${eur.format(r.payment)}</td>
+      <td>${eur.format(r.interest)}</td>
+      <td>${eur.format(r.principal)}</td>
+      <td>${eur.format(r.balance)}</td>
+      <td>${eur.format(r.cumInterest)}</td>
+      <td>${eur.format(r.cumPrincipal)}</td>
+    </tr>`).join('');
+}
+
 function render() {
   const { principal, years, rate, valid } = readInputs();
   if (!valid) return;
@@ -190,6 +219,7 @@ function render() {
   document.getElementById('out-interest').textContent = eur.format(s.totalInterest);
   document.getElementById('out-total').textContent = eur.format(s.totalPaid);
   document.getElementById('out-pct').textContent = `${pctFmt.format(s.interestPct)} %`;
+  renderTable(principal, rate, years);
 }
 
 let renderTimer;
