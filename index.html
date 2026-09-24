@@ -264,7 +264,7 @@ function renderCompositionChart(principal, rate, years) {
   const rows = aggregateByYear(buildSchedule(principal, rate, years));
   const container = document.getElementById('chart-composition');
   container.innerHTML = '';
-  const W = 720, H = 360, m = { top: 20, right: 20, bottom: 36, left: 70 };
+  const W = 720, H = 360, m = { top: 20, right: 70, bottom: 36, left: 70 };
   const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
   const maxPay = Math.max(...rows.map((r) => r.payment));
   const maxBal = principal;
@@ -287,6 +287,13 @@ function renderCompositionChart(principal, rate, years) {
     svg.appendChild(svgEl('rect', { x, y: m.top + ih - hP, width: w, height: hP, class: 'bar-principal' }));
     svg.appendChild(svgEl('rect', { x, y: m.top + ih - hP - hI, width: w, height: hI, class: 'bar-interest' }));
   });
+
+  svg.appendChild(svgEl('line', { x1: m.left + iw, y1: m.top, x2: m.left + iw, y2: m.top + ih, class: 'axis' }));
+  for (let g = 0; g <= 4; g++) {
+    const label = svgEl('text', { x: m.left + iw + 8, y: m.top + (ih * g) / 4 + 4, class: 'tick', 'text-anchor': 'start' });
+    label.textContent = eur.format(principal * (1 - g / 4)).replace(/\s?€/, '');
+    svg.appendChild(label);
+  }
 
   const pts = rows.map((r, idx) => {
     const x = m.left + idx * bw + bw / 2;
