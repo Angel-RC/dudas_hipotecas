@@ -137,6 +137,11 @@
     </div>
     <div id="chart-composition"></div>
   </section>
+
+  <section class="panel">
+    <h2>Cuota mensual según el plazo (tu interés)</h2>
+    <div id="chart-plazo"></div>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -312,6 +317,47 @@ function renderCompositionChart(principal, rate, years) {
   container.appendChild(svg);
 }
 
+function renderPlazoChart(principal, rate, currentYears) {
+  const container = document.getElementById('chart-plazo');
+  container.innerHTML = '';
+  const W = 720, H = 320, m = { top: 20, right: 20, bottom: 36, left: 80 };
+  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+  const years = [];
+  for (let y = 1; y <= 50; y++) years.push(y);
+  const values = years.map((y) => monthlyPayment(principal, rate, y));
+  const maxV = Math.max(...values), minV = Math.min(...values);
+  const xOf = (y) => m.left + ((y - 1) / 49) * iw;
+  const yOf = (v) => m.top + ih - ((v - minV) / (maxV - minV || 1)) * ih;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Cuota mensual según el plazo' });
+
+  for (let g = 0; g <= 4; g++) {
+    const y = m.top + (ih * g) / 4;
+    svg.appendChild(svgEl('line', { x1: m.left, y1: y, x2: m.left + iw, y2: y, class: 'grid' }));
+    const label = svgEl('text', { x: m.left - 8, y: y + 4, class: 'tick', 'text-anchor': 'end' });
+    label.textContent = eur.format(maxV - ((maxV - minV) * g) / 4).replace(/\s?€/, '');
+    svg.appendChild(label);
+  }
+
+  const pts = years.map((y) => `${xOf(y)},${yOf(monthlyPayment(principal, rate, y))}`).join(' ');
+  svg.appendChild(svgEl('polyline', { points: pts, class: 'balance-line', style: 'stroke: var(--accent)' }));
+
+  const cx = xOf(currentYears);
+  const cy = yOf(monthlyPayment(principal, rate, currentYears));
+  svg.appendChild(svgEl('circle', { cx, cy, r: 5, class: 'marker' }));
+  const tag = svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
+  tag.textContent = `${currentYears} años · ${eur.format(monthlyPayment(principal, rate, currentYears))}`;
+  svg.appendChild(tag);
+
+  for (const y of [1, 10, 20, 30, 40, 50]) {
+    const t = svgEl('text', { x: xOf(y), y: H - 12, class: 'tick', 'text-anchor': 'middle' });
+    t.textContent = `${y}`;
+    svg.appendChild(t);
+  }
+
+  container.appendChild(svg);
+}
+
 function render() {
   const { principal, years, rate, valid } = readInputs();
   if (!valid) return;
@@ -323,6 +369,7 @@ function render() {
   renderTable(principal, rate, years);
   renderEquation(principal, rate, years);
   renderCompositionChart(principal, rate, years);
+  renderPlazoChart(principal, rate, years);
 }
 
 let renderTimer;
