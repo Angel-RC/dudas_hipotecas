@@ -71,16 +71,16 @@
 
   <section class="panel inputs">
     <label>Importe a financiar (€)
-      <input id="principal" type="number" min="1" step="1000" value="150000">
-      <span class="error" id="err-principal"></span>
+      <input id="principal" type="number" min="1" step="1000" value="150000" aria-describedby="err-principal">
+      <span class="error" id="err-principal" aria-live="polite"></span>
     </label>
     <label>Plazo (años)
-      <input id="years" type="number" min="1" max="50" step="1" value="30">
-      <span class="error" id="err-years"></span>
+      <input id="years" type="number" min="1" max="50" step="1" value="30" aria-describedby="err-years">
+      <span class="error" id="err-years" aria-live="polite"></span>
     </label>
     <label>Interés anual TIN (%)
-      <input id="rate" type="number" min="0" max="20" step="0.05" value="3">
-      <span class="error" id="err-rate"></span>
+      <input id="rate" type="number" min="0" max="20" step="0.05" value="3" aria-describedby="err-rate">
+      <span class="error" id="err-rate" aria-live="polite"></span>
     </label>
   </section>
 
@@ -231,6 +231,9 @@ function readInputs() {
   document.getElementById('err-principal').textContent = errors.principal;
   document.getElementById('err-years').textContent = errors.years;
   document.getElementById('err-rate').textContent = errors.rate;
+  els.principal.setAttribute('aria-invalid', errors.principal ? 'true' : 'false');
+  els.years.setAttribute('aria-invalid', errors.years ? 'true' : 'false');
+  els.rate.setAttribute('aria-invalid', errors.rate ? 'true' : 'false');
   return { principal, years, rate, valid: !errors.principal && !errors.years && !errors.rate };
 }
 
@@ -300,19 +303,27 @@ function renderCompositionChart(principal, rate, years) {
     svg.appendChild(label);
   }
 
-  const pts = rows.map((r, idx) => {
-    const x = m.left + idx * bw + bw / 2;
-    const y = m.top + ih - (r.balance / maxBal) * ih;
-    return `${x},${y}`;
-  }).join(' ');
-  svg.appendChild(svgEl('polyline', { points: pts, class: 'balance-line' }));
+  if (rows.length === 1) {
+    const x = m.left + bw / 2;
+    const y = m.top + ih - (rows[0].balance / maxBal) * ih;
+    svg.appendChild(svgEl('circle', { cx: x, cy: y, r: 4, class: 'marker' }));
+  } else {
+    const pts = rows.map((r, idx) => {
+      const x = m.left + idx * bw + bw / 2;
+      const y = m.top + ih - (r.balance / maxBal) * ih;
+      return `${x},${y}`;
+    }).join(' ');
+    svg.appendChild(svgEl('polyline', { points: pts, class: 'balance-line' }));
+  }
 
   const first = svgEl('text', { x: m.left, y: H - 12, class: 'tick', 'text-anchor': 'start' });
   first.textContent = 'Año 1';
-  const last = svgEl('text', { x: m.left + iw, y: H - 12, class: 'tick', 'text-anchor': 'end' });
-  last.textContent = `Año ${rows.length}`;
   svg.appendChild(first);
-  svg.appendChild(last);
+  if (rows.length > 1) {
+    const last = svgEl('text', { x: m.left + iw, y: H - 12, class: 'tick', 'text-anchor': 'end' });
+    last.textContent = `Año ${rows.length}`;
+    svg.appendChild(last);
+  }
 
   container.appendChild(svg);
 }
@@ -345,7 +356,9 @@ function renderPlazoChart(principal, rate, currentYears) {
   const cx = xOf(currentYears);
   const cy = yOf(monthlyPayment(principal, rate, currentYears));
   svg.appendChild(svgEl('circle', { cx, cy, r: 5, class: 'marker' }));
-  const tag = svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
+  const tag = currentYears > 42
+    ? svgEl('text', { x: cx - 8, y: cy - 8, class: 'tick', 'text-anchor': 'end' })
+    : svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
   tag.textContent = `${currentYears} años · ${eur.format(monthlyPayment(principal, rate, currentYears))}`;
   svg.appendChild(tag);
 
@@ -358,9 +371,20 @@ function renderPlazoChart(principal, rate, currentYears) {
   container.appendChild(svg);
 }
 
+function clearResults() {
+  document.getElementById('out-payment').textContent = '—';
+  document.getElementById('out-interest').textContent = '—';
+  document.getElementById('out-total').textContent = '—';
+  document.getElementById('out-pct').textContent = '—';
+  document.querySelector('#schedule tbody').innerHTML = '';
+  document.getElementById('substitution').innerHTML = '';
+  document.getElementById('chart-composition').innerHTML = '';
+  document.getElementById('chart-plazo').innerHTML = '';
+}
+
 function render() {
   const { principal, years, rate, valid } = readInputs();
-  if (!valid) return;
+  if (!valid) { clearResults(); return; }
   const s = summarize(principal, rate, years);
   document.getElementById('out-payment').textContent = eur.format(s.monthlyPayment);
   document.getElementById('out-interest').textContent = eur.format(s.totalInterest);

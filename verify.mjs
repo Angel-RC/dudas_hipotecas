@@ -25,11 +25,14 @@ const assert = (cond, label) => {
 const s = summarize(150000, 3, 30);
 approx(s.monthlyPayment, 632.41, 0.01, 'cuota 150k/30a/3%');
 approx(s.totalInterest, 77666.18, 0.5, 'intereses totales 150k/30a/3%');
+approx(s.totalPaid, 227666.18, 0.5, 'total pagado 150k/30a/3%');
 approx(s.interestPct, 34.114, 0.01, 'porcentaje de intereses');
+assert(s.months.length === 360, 'summarize devuelve 360 meses');
 
 const z = summarize(150000, 0, 30);
 approx(z.monthlyPayment, 416.6667, 0.0001, 'cuota con tipo 0%');
 approx(z.totalInterest, 0, 0.0001, 'intereses con tipo 0%');
+assert(z.interestPct === 0, 'porcentaje de intereses con tipo 0% es 0');
 
 const months = buildSchedule(150000, 3, 30);
 assert(months.length === 360, '360 cuotas mensuales');
@@ -44,6 +47,10 @@ approx(
   0.01,
   'intereses del año 1 coinciden con los 12 primeros meses'
 );
+
+const lastYear = aggregateByYear(buildSchedule(150000, 3, 30)).at(-1);
+approx(lastYear.cumPrincipal, 150000, 0.01, 'principal acumulado final = importe');
+approx(lastYear.cumInterest, 77666.18, 0.5, 'intereses acumulados finales 150k/30a/3%');
 
 if (failures) { console.error(`\n${failures} fallo(s)`); process.exit(1); }
 console.log('\nTodo correcto');
