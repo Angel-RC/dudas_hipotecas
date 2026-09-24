@@ -173,9 +173,9 @@ function readInputs() {
   const years = Number(els.years.value);
   const rate = Number(els.rate.value);
   const errors = { principal: '', years: '', rate: '' };
-  if (!(principal > 0)) errors.principal = 'Introduce un importe mayor que 0.';
-  if (!(years >= 1 && years <= 50)) errors.years = 'El plazo debe estar entre 1 y 50 años.';
-  if (!(rate >= 0 && rate <= 20)) errors.rate = 'El interés debe estar entre 0 y 20.';
+  if (els.principal.value.trim() === '' || !(principal > 0)) errors.principal = 'Introduce un importe mayor que 0.';
+  if (els.years.value.trim() === '' || !(years >= 1 && years <= 50)) errors.years = 'El plazo debe estar entre 1 y 50 años.';
+  if (els.rate.value.trim() === '' || !(rate >= 0 && rate <= 20)) errors.rate = 'El interés debe estar entre 0 y 20.';
   document.getElementById('err-principal').textContent = errors.principal;
   document.getElementById('err-years').textContent = errors.years;
   document.getElementById('err-rate').textContent = errors.rate;
