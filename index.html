@@ -105,6 +105,28 @@
       </table>
     </div>
   </section>
+
+  <section class="panel">
+    <h2>La ecuación de la cuota (sistema francés)</h2>
+    <div class="formula">
+      <span>C</span> =
+      <span class="frac">
+        <span class="num">P · i</span>
+        <span class="den">1 − (1 + i)<sup>−n</sup></span>
+      </span>
+    </div>
+    <ul class="legend">
+      <li><b>C</b> — cuota mensual.</li>
+      <li><b>P</b> — importe financiado.</li>
+      <li><b>i</b> — tipo de interés mensual = TIN / 100 / 12.</li>
+      <li><b>n</b> — número total de cuotas = años × 12.</li>
+    </ul>
+    <div class="substitution" id="substitution"></div>
+    <p class="note">
+      Al <b>alargar el plazo</b> (n mayor) la cuota baja pero pagas más intereses en total.
+      Al <b>subir el interés</b> (i mayor) suben tanto la cuota como el total de intereses.
+    </p>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -211,6 +233,17 @@ function renderTable(principal, rate, years) {
     </tr>`).join('');
 }
 
+function renderEquation(principal, rate, years) {
+  const n = Math.round(years * 12);
+  const i = rate / 100 / 12;
+  const rateFmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 6 });
+  const cuota = monthlyPayment(principal, rate, years);
+  document.getElementById('substitution').innerHTML =
+    `Con tus datos: P = ${eur.format(principal)}, ` +
+    `i = ${rateFmt.format(i)}, n = ${n} cuotas → ` +
+    `<b>C = ${eur.format(cuota)}</b>`;
+}
+
 function render() {
   const { principal, years, rate, valid } = readInputs();
   if (!valid) return;
@@ -220,6 +253,7 @@ function render() {
   document.getElementById('out-total').textContent = eur.format(s.totalPaid);
   document.getElementById('out-pct').textContent = `${pctFmt.format(s.interestPct)} %`;
   renderTable(principal, rate, years);
+  renderEquation(principal, rate, years);
 }
 
 let renderTimer;
