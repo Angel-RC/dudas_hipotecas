@@ -127,6 +127,16 @@
       Al <b>subir el interés</b> (i mayor) suben tanto la cuota como el total de intereses.
     </p>
   </section>
+
+  <section class="panel">
+    <h2>Composición anual de la hipoteca</h2>
+    <div class="chart-legend">
+      <span><span class="swatch" style="background:var(--principal)"></span>Principal</span>
+      <span><span class="swatch" style="background:var(--interest)"></span>Intereses</span>
+      <span><span class="swatch" style="background:var(--balance)"></span>Capital pendiente</span>
+    </div>
+    <div id="chart-composition"></div>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -244,6 +254,57 @@ function renderEquation(principal, rate, years) {
     `<b>C = ${eur.format(cuota)}</b>`;
 }
 
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+function renderCompositionChart(principal, rate, years) {
+  const rows = aggregateByYear(buildSchedule(principal, rate, years));
+  const container = document.getElementById('chart-composition');
+  container.innerHTML = '';
+  const W = 720, H = 360, m = { top: 20, right: 20, bottom: 36, left: 70 };
+  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+  const maxPay = Math.max(...rows.map((r) => r.payment));
+  const maxBal = principal;
+  const bw = iw / rows.length;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Composición anual de la hipoteca' });
+
+  for (let g = 0; g <= 4; g++) {
+    const y = m.top + (ih * g) / 4;
+    svg.appendChild(svgEl('line', { x1: m.left, y1: y, x2: m.left + iw, y2: y, class: 'grid' }));
+    const label = svgEl('text', { x: m.left - 8, y: y + 4, class: 'tick', 'text-anchor': 'end' });
+    label.textContent = eur.format(maxPay * (1 - g / 4)).replace(/\s?€/, '');
+    svg.appendChild(label);
+  }
+
+  rows.forEach((r, idx) => {
+    const x = m.left + idx * bw + bw * 0.15;
+    const w = bw * 0.7;
+    const hP = (r.principal / maxPay) * ih;
+    const hI = (r.interest / maxPay) * ih;
+    svg.appendChild(svgEl('rect', { x, y: m.top + ih - hP, width: w, height: hP, class: 'bar-principal' }));
+    svg.appendChild(svgEl('rect', { x, y: m.top + ih - hP - hI, width: w, height: hI, class: 'bar-interest' }));
+  });
+
+  const pts = rows.map((r, idx) => {
+    const x = m.left + idx * bw + bw / 2;
+    const y = m.top + ih - (r.balance / maxBal) * ih;
+    return `${x},${y}`;
+  }).join(' ');
+  svg.appendChild(svgEl('polyline', { points: pts, class: 'balance-line' }));
+
+  const first = svgEl('text', { x: m.left, y: H - 12, class: 'tick', 'text-anchor': 'start' });
+  first.textContent = 'Año 1';
+  const last = svgEl('text', { x: m.left + iw, y: H - 12, class: 'tick', 'text-anchor': 'end' });
+  last.textContent = `Año ${rows.length}`;
+  svg.appendChild(first);
+  svg.appendChild(last);
+
+  container.appendChild(svg);
+}
+
 function render() {
   const { principal, years, rate, valid } = readInputs();
   if (!valid) return;
@@ -254,6 +315,7 @@ function render() {
   document.getElementById('out-pct').textContent = `${pctFmt.format(s.interestPct)} %`;
   renderTable(principal, rate, years);
   renderEquation(principal, rate, years);
+  renderCompositionChart(principal, rate, years);
 }
 
 let renderTimer;
