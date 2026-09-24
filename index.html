@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de hipotecas · sistema francés</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2430; --muted: #6b7686;
+    --line: #dde3ea; --accent: #2f6df6; --interest: #f0713a; --principal: #2f6df6;
+    --balance: #7a3df0; --danger: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 18px;
+  }
+  .inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .inputs label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; }
+  .inputs input {
+    padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 1rem; background: #fff; color: var(--ink);
+  }
+  .inputs input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .error { color: var(--danger); font-size: .8rem; font-weight: 500; min-height: 1em; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card-label { display: block; color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
+  .card-value { display: block; font-size: 1.25rem; font-weight: 700; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-size: .8rem; }
+  tbody tr:hover { background: #f2f5fb; }
+  .formula { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; margin: 8px 0 16px; }
+  .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; }
+  .frac .num { border-bottom: 2px solid var(--ink); padding: 0 6px 2px; }
+  .frac .den { padding: 2px 6px 0; }
+  .legend { margin: 0 0 14px; padding-left: 18px; color: var(--muted); }
+  .legend b { color: var(--ink); }
+  .substitution { background: #eef3ff; border-radius: 8px; padding: 10px 12px; }
+  .note { color: var(--muted); font-size: .9rem; }
+  .chart-legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  svg { width: 100%; height: auto; display: block; }
+  .axis { stroke: var(--line); stroke-width: 1; }
+  .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  .bar-principal { fill: var(--principal); }
+  .bar-interest { fill: var(--interest); }
+  .balance-line { fill: none; stroke: var(--balance); stroke-width: 2; }
+  .marker { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+  .tick { fill: var(--muted); font-size: 11px; }
+  @media (max-width: 720px) {
+    .inputs, .summary { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulador de hipotecas</h1>
+  <p class="subtitle">Sistema francés de amortización · cuota constante</p>
+</main>
+<script>
+// --- CALC START ---
+function monthlyRate(annualRatePct) {
+  return annualRatePct / 100 / 12;
+}
+
+function monthlyPayment(principal, annualRatePct, years) {
+  const n = Math.round(years * 12);
+  const i = monthlyRate(annualRatePct);
+  if (n <= 0) return 0;
+  if (i === 0) return principal / n;
+  return (principal * i) / (1 - Math.pow(1 + i, -n));
+}
+
+function buildSchedule(principal, annualRatePct, years) {
+  const n = Math.round(years * 12);
+  const i = monthlyRate(annualRatePct);
+  const payment = monthlyPayment(principal, annualRatePct, years);
+  const months = [];
+  let balance = principal;
+  for (let m = 1; m <= n; m++) {
+    const interest = balance * i;
+    let principalPart = payment - interest;
+    if (m === n) principalPart = balance;
+    const pay = principalPart + interest;
+    balance -= principalPart;
+    months.push({ month: m, payment: pay, interest, principal: principalPart, balance: Math.max(balance, 0) });
+  }
+  return months;
+}
+
+function aggregateByYear(months) {
+  const years = [];
+  for (const row of months) {
+    const idx = Math.ceil(row.month / 12) - 1;
+    if (!years[idx]) {
+      years[idx] = { year: idx + 1, payment: 0, interest: 0, principal: 0, balance: 0, cumInterest: 0, cumPrincipal: 0 };
+    }
+    const y = years[idx];
+    y.payment += row.payment;
+    y.interest += row.interest;
+    y.principal += row.principal;
+    y.balance = row.balance;
+  }
+  let cumInterest = 0, cumPrincipal = 0;
+  for (const y of years) {
+    cumInterest += y.interest;
+    cumPrincipal += y.principal;
+    y.cumInterest = cumInterest;
+    y.cumPrincipal = cumPrincipal;
+  }
+  return years;
+}
+
+function summarize(principal, annualRatePct, years) {
+  const months = buildSchedule(principal, annualRatePct, years);
+  const totalPaid = months.reduce((sum, m) => sum + m.payment, 0);
+  const totalInterest = totalPaid - principal;
+  return {
+    monthlyPayment: monthlyPayment(principal, annualRatePct, years),
+    totalPaid,
+    totalInterest,
+    interestPct: totalPaid > 0 ? (totalInterest / totalPaid) * 100 : 0,
+    months,
+  };
+}
+// --- CALC END ---
+</script>
+</body>
+</html>
