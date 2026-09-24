@@ -79,7 +79,7 @@ Fuera (YAGNI):
 Sin framework de tests (archivo personal). Se verifica abriendo `index.html` y
 contrastando valores de referencia conocidos, por ejemplo:
 - P = 150.000 €, 30 años, 3% → cuota ≈ 632,41 €/mes.
-- P = 150.000 €, 30 años, 3% → intereses totales ≈ 77.666 €.
+- P = 150.000 €, 30 años, 3% → intereses totales ≈ 77.666,18 €.
 
 Se comprobarán además: caso `i = 0`, último año cierra en 0, y que la suma de
 principal amortizado iguala el importe financiado.
