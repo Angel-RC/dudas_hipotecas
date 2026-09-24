@@ -68,6 +68,28 @@
 <main>
   <h1>Simulador de hipotecas</h1>
   <p class="subtitle">Sistema francés de amortización · cuota constante</p>
+
+  <section class="panel inputs">
+    <label>Importe a financiar (€)
+      <input id="principal" type="number" min="1" step="1000" value="150000">
+      <span class="error" id="err-principal"></span>
+    </label>
+    <label>Plazo (años)
+      <input id="years" type="number" min="1" max="50" step="1" value="30">
+      <span class="error" id="err-years"></span>
+    </label>
+    <label>Interés anual TIN (%)
+      <input id="rate" type="number" min="0" max="20" step="0.05" value="3">
+      <span class="error" id="err-rate"></span>
+    </label>
+  </section>
+
+  <section class="panel summary">
+    <div class="card"><span class="card-label">Cuota mensual</span><span class="card-value" id="out-payment">—</span></div>
+    <div class="card"><span class="card-label">Intereses totales</span><span class="card-value" id="out-interest">—</span></div>
+    <div class="card"><span class="card-label">Total pagado</span><span class="card-value" id="out-total">—</span></div>
+    <div class="card"><span class="card-label">% intereses</span><span class="card-value" id="out-pct">—</span></div>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -136,6 +158,48 @@ function summarize(principal, annualRatePct, years) {
   };
 }
 // --- CALC END ---
+
+const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+const pctFmt = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+const els = {
+  principal: document.getElementById('principal'),
+  years: document.getElementById('years'),
+  rate: document.getElementById('rate'),
+};
+
+function readInputs() {
+  const principal = Number(els.principal.value);
+  const years = Number(els.years.value);
+  const rate = Number(els.rate.value);
+  const errors = { principal: '', years: '', rate: '' };
+  if (!(principal > 0)) errors.principal = 'Introduce un importe mayor que 0.';
+  if (!(years >= 1 && years <= 50)) errors.years = 'El plazo debe estar entre 1 y 50 años.';
+  if (!(rate >= 0 && rate <= 20)) errors.rate = 'El interés debe estar entre 0 y 20.';
+  document.getElementById('err-principal').textContent = errors.principal;
+  document.getElementById('err-years').textContent = errors.years;
+  document.getElementById('err-rate').textContent = errors.rate;
+  return { principal, years, rate, valid: !errors.principal && !errors.years && !errors.rate };
+}
+
+function render() {
+  const { principal, years, rate, valid } = readInputs();
+  if (!valid) return;
+  const s = summarize(principal, rate, years);
+  document.getElementById('out-payment').textContent = eur.format(s.monthlyPayment);
+  document.getElementById('out-interest').textContent = eur.format(s.totalInterest);
+  document.getElementById('out-total').textContent = eur.format(s.totalPaid);
+  document.getElementById('out-pct').textContent = `${pctFmt.format(s.interestPct)} %`;
+}
+
+let renderTimer;
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 150);
+}
+
+Object.values(els).forEach((el) => el.addEventListener('input', scheduleRender));
+render();
 </script>
 </body>
 </html>
