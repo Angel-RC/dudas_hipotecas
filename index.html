@@ -41,6 +41,8 @@
   th:first-child, td:first-child { text-align: left; }
   thead th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-size: .8rem; }
   tbody tr:hover { background: #f2f5fb; }
+  tr.best td { background: #eef3ff; font-weight: 600; }
+  tr.na td { color: var(--muted); }
   .formula { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; margin: 8px 0 16px; }
   .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; }
   .frac .num { border-bottom: 2px solid var(--ink); padding: 0 6px 2px; }
@@ -142,6 +144,46 @@
     <h2>Cuota mensual según el plazo (tu interés)</h2>
     <div id="chart-plazo"></div>
   </section>
+
+  <section class="panel">
+    <h2>¿Cuántos años conviene? (coste de oportunidad)</h2>
+    <p class="note">
+      Con el mismo presupuesto mensual, para cada plazo se invierte lo que no va a la hipoteca
+      a la rentabilidad neta indicada, hasta el horizonte. El patrimonio neto descuenta la deuda
+      que quedaría pendiente al final del horizonte.
+    </p>
+    <div class="inputs">
+      <label>Presupuesto mensual (€)
+        <input id="budget" type="number" min="1" step="10" value="632.41" aria-describedby="err-budget">
+        <span class="error" id="err-budget" aria-live="polite"></span>
+      </label>
+      <label>Rentabilidad neta anual (%)
+        <input id="netreturn" type="number" min="0" max="30" step="0.25" value="5" aria-describedby="err-netreturn">
+        <span class="error" id="err-netreturn" aria-live="polite"></span>
+      </label>
+      <label>Horizonte (años)
+        <input id="horizon" type="number" min="1" max="60" step="1" value="30" aria-describedby="err-horizon">
+        <span class="error" id="err-horizon" aria-live="polite"></span>
+      </label>
+    </div>
+    <div class="substitution" id="best-summary"></div>
+    <div class="table-wrap">
+      <table id="term-table">
+        <thead>
+          <tr>
+            <th>Plazo</th><th>Cuota mensual</th><th>Intereses totales</th>
+            <th>Invertido</th><th>Patrimonio neto</th><th>¿Asumible?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Patrimonio neto según el plazo</h2>
+    <div id="chart-wealth"></div>
+  </section>
 </main>
 <script>
 // --- CALC START ---
@@ -209,6 +251,67 @@ function summarize(principal, annualRatePct, years) {
     months,
   };
 }
+
+function monthlyNetReturn(netReturnPct) {
+  return Math.pow(1 + netReturnPct / 100, 1 / 12) - 1;
+}
+
+function investDifference(principal, annualRatePct, years, monthlyBudget, netReturnPct, horizonYears) {
+  const months = buildSchedule(principal, annualRatePct, years);
+  const n = months.length;
+  const horizonMonths = Math.round(horizonYears * 12);
+  const payment = monthlyPayment(principal, annualRatePct, years);
+  const m = monthlyNetReturn(netReturnPct);
+  let invested = 0;
+  for (let month = 1; month <= horizonMonths; month++) {
+    const contribution = month <= n ? monthlyBudget - payment : monthlyBudget;
+    invested = invested * (1 + m) + Math.max(contribution, 0);
+  }
+  const totalPaid = months.reduce((sum, x) => sum + x.payment, 0);
+  const balance = n > horizonMonths ? months[horizonMonths - 1].balance : 0;
+  return {
+    years,
+    monthlyPayment: payment,
+    totalPaid,
+    totalInterest: totalPaid - principal,
+    invested,
+    netWealth: invested - balance,
+    affordable: monthlyBudget + 1e-9 >= payment,
+  };
+}
+
+function compareTerms(principal, annualRatePct, monthlyBudget, netReturnPct, horizonYears, maxYears = 50) {
+  const terms = [];
+  for (let y = 1; y <= maxYears; y++) {
+    terms.push(investDifference(principal, annualRatePct, y, monthlyBudget, netReturnPct, horizonYears));
+  }
+  let best = null;
+  for (const t of terms) {
+    if (!t.affordable) continue;
+    if (!best || t.netWealth > best.netWealth) best = t;
+  }
+  return { terms, best };
+}
+
+function breakEvenReturn(principal, annualRatePct, monthlyBudget, horizonYears, termA, termB) {
+  if (termA === termB) return null;
+  const diff = (netReturnPct) => {
+    const a = investDifference(principal, annualRatePct, termA, monthlyBudget, netReturnPct, horizonYears);
+    const b = investDifference(principal, annualRatePct, termB, monthlyBudget, netReturnPct, horizonYears);
+    return a.netWealth - b.netWealth;
+  };
+  let lo = 0, hi = 30;
+  let flo = diff(lo), fhi = diff(hi);
+  if (flo === 0) return 0;
+  if (fhi === 0) return 30;
+  if (flo * fhi > 0) return null;
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    const fm = diff(mid);
+    if (flo * fm <= 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; }
+  }
+  return (lo + hi) / 2;
+}
 // --- CALC END ---
 
 const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
@@ -218,6 +321,9 @@ const els = {
   principal: document.getElementById('principal'),
   years: document.getElementById('years'),
   rate: document.getElementById('rate'),
+  budget: document.getElementById('budget'),
+  netreturn: document.getElementById('netreturn'),
+  horizon: document.getElementById('horizon'),
 };
 
 function readInputs() {
@@ -371,6 +477,105 @@ function renderPlazoChart(principal, rate, currentYears) {
   container.appendChild(svg);
 }
 
+function readComparatorInputs() {
+  const budget = Number(els.budget.value);
+  const netreturn = Number(els.netreturn.value);
+  const horizon = Number(els.horizon.value);
+  const errors = { budget: '', netreturn: '', horizon: '' };
+  if (els.budget.value.trim() === '' || !(budget > 0)) errors.budget = 'Introduce un presupuesto mayor que 0.';
+  if (els.netreturn.value.trim() === '' || !(netreturn >= 0 && netreturn <= 30)) errors.netreturn = 'La rentabilidad debe estar entre 0 y 30.';
+  if (els.horizon.value.trim() === '' || !(horizon >= 1 && horizon <= 60)) errors.horizon = 'El horizonte debe estar entre 1 y 60 años.';
+  document.getElementById('err-budget').textContent = errors.budget;
+  document.getElementById('err-netreturn').textContent = errors.netreturn;
+  document.getElementById('err-horizon').textContent = errors.horizon;
+  els.budget.setAttribute('aria-invalid', errors.budget ? 'true' : 'false');
+  els.netreturn.setAttribute('aria-invalid', errors.netreturn ? 'true' : 'false');
+  els.horizon.setAttribute('aria-invalid', errors.horizon ? 'true' : 'false');
+  return { budget, netreturn, horizon, valid: !errors.budget && !errors.netreturn && !errors.horizon };
+}
+
+function clearComparator() {
+  document.getElementById('best-summary').innerHTML = '';
+  document.querySelector('#term-table tbody').innerHTML = '';
+  document.getElementById('chart-wealth').innerHTML = '';
+}
+
+function renderWealthChart(terms, best) {
+  const container = document.getElementById('chart-wealth');
+  container.innerHTML = '';
+  const W = 720, H = 320, m = { top: 20, right: 20, bottom: 36, left: 90 };
+  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+  const affordable = terms.filter((t) => t.affordable);
+  const maxV = Math.max(...affordable.map((t) => t.netWealth), 0);
+  const minV = Math.min(...affordable.map((t) => t.netWealth), 0);
+  const xOf = (y) => m.left + ((y - 1) / 49) * iw;
+  const yOf = (v) => m.top + ih - ((v - minV) / (maxV - minV || 1)) * ih;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Patrimonio neto según el plazo' });
+
+  for (let g = 0; g <= 4; g++) {
+    const y = m.top + (ih * g) / 4;
+    svg.appendChild(svgEl('line', { x1: m.left, y1: y, x2: m.left + iw, y2: y, class: 'grid' }));
+    const label = svgEl('text', { x: m.left - 8, y: y + 4, class: 'tick', 'text-anchor': 'end' });
+    label.textContent = eur.format(maxV - ((maxV - minV) * g) / 4).replace(/\s?€/, '');
+    svg.appendChild(label);
+  }
+
+  if (minV < 0 && maxV > 0) {
+    svg.appendChild(svgEl('line', { x1: m.left, y1: yOf(0), x2: m.left + iw, y2: yOf(0), class: 'axis' }));
+  }
+
+  if (affordable.length > 1) {
+    const pts = affordable.map((t) => `${xOf(t.years)},${yOf(t.netWealth)}`).join(' ');
+    svg.appendChild(svgEl('polyline', { points: pts, class: 'balance-line', style: 'stroke: var(--accent)' }));
+  }
+
+  if (best) {
+    const cx = xOf(best.years), cy = yOf(best.netWealth);
+    svg.appendChild(svgEl('circle', { cx, cy, r: 5, class: 'marker' }));
+    const tag = best.years > 42
+      ? svgEl('text', { x: cx - 8, y: cy - 8, class: 'tick', 'text-anchor': 'end' })
+      : svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
+    tag.textContent = `${best.years} años`;
+    svg.appendChild(tag);
+  }
+
+  for (const y of [1, 10, 20, 30, 40, 50]) {
+    const t = svgEl('text', { x: xOf(y), y: H - 12, class: 'tick', 'text-anchor': 'middle' });
+    t.textContent = `${y}`;
+    svg.appendChild(t);
+  }
+
+  container.appendChild(svg);
+}
+
+function renderComparator(principal, rate, currentYears) {
+  const { budget, netreturn, horizon, valid } = readComparatorInputs();
+  if (!valid) { clearComparator(); return; }
+  const { terms, best } = compareTerms(principal, rate, budget, netreturn, horizon);
+  document.querySelector('#term-table tbody').innerHTML = terms.map((t) => {
+    const cls = !t.affordable ? 'na' : (best && t.years === best.years ? 'best' : '');
+    return `<tr${cls ? ` class="${cls}"` : ''}>
+      <td>${t.years}</td>
+      <td>${eur.format(t.monthlyPayment)}</td>
+      <td>${eur.format(t.totalInterest)}</td>
+      <td>${t.affordable ? eur.format(t.invested) : '—'}</td>
+      <td>${t.affordable ? eur.format(t.netWealth) : '—'}</td>
+      <td>${t.affordable ? 'Sí' : 'No'}</td>
+    </tr>`;
+  }).join('');
+  const be = breakEvenReturn(principal, rate, budget, horizon, currentYears, 50);
+  let beText;
+  if (currentYears === 50) beText = 'tu plazo ya es el máximo.';
+  else if (be === null) beText = 'no hay cruce en el rango 0–30 % neto.';
+  else beText = `${pctFmt.format(be)} % neto anual (plazo ${currentYears} vs 50 años); por encima, alargar compensa.`;
+  document.getElementById('best-summary').innerHTML =
+    `Plazo óptimo: <b>${best ? `${best.years} años` : '—'}</b> · ` +
+    `patrimonio neto ${best ? eur.format(best.netWealth) : '—'}.<br>` +
+    `Rentabilidad de indiferencia: ${beText}`;
+  renderWealthChart(terms, best);
+}
+
 function clearResults() {
   document.getElementById('out-payment').textContent = '—';
   document.getElementById('out-interest').textContent = '—';
@@ -380,6 +585,7 @@ function clearResults() {
   document.getElementById('substitution').innerHTML = '';
   document.getElementById('chart-composition').innerHTML = '';
   document.getElementById('chart-plazo').innerHTML = '';
+  clearComparator();
 }
 
 function render() {
@@ -394,6 +600,7 @@ function render() {
   renderEquation(principal, rate, years);
   renderCompositionChart(principal, rate, years);
   renderPlazoChart(principal, rate, years);
+  renderComparator(principal, rate, years);
 }
 
 let renderTimer;

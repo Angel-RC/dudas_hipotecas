@@ -7,9 +7,12 @@ if (start === -1 || end === -1) throw new Error('No se encontraron los marcadore
 
 const code = html.slice(start, end);
 const factory = new Function(
-  `${code}; return { monthlyPayment, buildSchedule, aggregateByYear, summarize };`
+  `${code}; return { monthlyPayment, buildSchedule, aggregateByYear, summarize, monthlyNetReturn, investDifference, compareTerms, breakEvenReturn };`
 );
-const { monthlyPayment, buildSchedule, aggregateByYear, summarize } = factory();
+const {
+  monthlyPayment, buildSchedule, aggregateByYear, summarize,
+  monthlyNetReturn, investDifference, compareTerms, breakEvenReturn,
+} = factory();
 
 let failures = 0;
 const approx = (actual, expected, tol, label) => {
@@ -51,6 +54,30 @@ approx(
 const lastYear = aggregateByYear(buildSchedule(150000, 3, 30)).at(-1);
 approx(lastYear.cumPrincipal, 150000, 0.01, 'principal acumulado final = importe');
 approx(lastYear.cumInterest, 77666.18, 0.5, 'intereses acumulados finales 150k/30a/3%');
+
+approx(monthlyNetReturn(0), 0, 1e-12, 'tipo mensual equivalente con rentabilidad 0%');
+approx(monthlyNetReturn(5), 0.00407412, 1e-8, 'tipo mensual equivalente con rentabilidad 5%');
+
+const inv = investDifference(150000, 3, 30, 1000, 0, 30);
+approx(inv.monthlyPayment, 632.41, 0.01, 'comparador: cuota 150k/30a/3%');
+approx(inv.totalInterest, 77666.18, 0.5, 'comparador: intereses totales');
+approx(inv.invested, 132333.82, 0.5, 'comparador: invertido a rentabilidad 0% = presupuesto - total pagado');
+approx(inv.netWealth, inv.invested, 1e-6, 'comparador: sin deuda, patrimonio = invertido');
+assert(inv.affordable === true, 'comparador: 1000 EUR/mes asumible para 30 años');
+assert(investDifference(150000, 3, 30, 600, 0, 30).affordable === false, 'comparador: 600 EUR/mes no asumible para 30 años');
+
+const w10 = investDifference(150000, 3, 10, 1000, 0, 30).netWealth;
+const w30 = investDifference(150000, 3, 30, 1000, 0, 30).netWealth;
+const w50 = investDifference(150000, 3, 50, 1000, 0, 30).netWealth;
+assert(w10 > w30 && w30 > w50, 'comparador: a rentabilidad 0% el patrimonio baja al alargar el plazo');
+
+const cmp = compareTerms(150000, 3, 1000, 5, 30);
+assert(cmp.terms.length === 50, 'comparador: 50 plazos evaluados');
+assert(cmp.best.years === 50, 'comparador: con 5% neto y 1000 EUR/mes el óptimo es 50 años');
+approx(cmp.best.netWealth, 334492.78, 1, 'comparador: patrimonio del óptimo');
+
+approx(breakEvenReturn(150000, 3, 632.406050594184, 50, 30, 50), 3.0416, 0.001, 'rentabilidad de indiferencia 30 vs 50 años');
+assert(breakEvenReturn(150000, 3, 1000, 30, 30, 30) === null, 'rentabilidad de indiferencia con plazos iguales es null');
 
 if (failures) { console.error(`\n${failures} fallo(s)`); process.exit(1); }
 console.log('\nTodo correcto');
