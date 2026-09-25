@@ -77,7 +77,7 @@
       <span class="error" id="err-principal" aria-live="polite"></span>
     </label>
     <label>Plazo (años)
-      <input id="years" type="number" min="1" max="50" step="1" value="30" aria-describedby="err-years">
+      <input id="years" type="number" min="1" max="30" step="1" value="30" aria-describedby="err-years">
       <span class="error" id="err-years" aria-live="polite"></span>
     </label>
     <label>Interés anual TIN (%)
@@ -187,6 +187,8 @@
 </main>
 <script>
 // --- CALC START ---
+const MAX_TERM_YEARS = 30;
+
 function monthlyRate(annualRatePct) {
   return annualRatePct / 100 / 12;
 }
@@ -280,7 +282,7 @@ function investDifference(principal, annualRatePct, years, monthlyBudget, netRet
   };
 }
 
-function compareTerms(principal, annualRatePct, monthlyBudget, netReturnPct, horizonYears, maxYears = 50) {
+function compareTerms(principal, annualRatePct, monthlyBudget, netReturnPct, horizonYears, maxYears = MAX_TERM_YEARS) {
   const terms = [];
   for (let y = 1; y <= maxYears; y++) {
     terms.push(investDifference(principal, annualRatePct, y, monthlyBudget, netReturnPct, horizonYears));
@@ -332,7 +334,7 @@ function readInputs() {
   const rate = Number(els.rate.value);
   const errors = { principal: '', years: '', rate: '' };
   if (els.principal.value.trim() === '' || !(principal > 0)) errors.principal = 'Introduce un importe mayor que 0.';
-  if (els.years.value.trim() === '' || !(years >= 1 && years <= 50)) errors.years = 'El plazo debe estar entre 1 y 50 años.';
+  if (els.years.value.trim() === '' || !(years >= 1 && years <= MAX_TERM_YEARS)) errors.years = `El plazo debe estar entre 1 y ${MAX_TERM_YEARS} años.`;
   if (els.rate.value.trim() === '' || !(rate >= 0 && rate <= 20)) errors.rate = 'El interés debe estar entre 0 y 20.';
   document.getElementById('err-principal').textContent = errors.principal;
   document.getElementById('err-years').textContent = errors.years;
@@ -440,10 +442,10 @@ function renderPlazoChart(principal, rate, currentYears) {
   const W = 720, H = 320, m = { top: 20, right: 20, bottom: 36, left: 80 };
   const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
   const years = [];
-  for (let y = 1; y <= 50; y++) years.push(y);
+  for (let y = 1; y <= MAX_TERM_YEARS; y++) years.push(y);
   const values = years.map((y) => monthlyPayment(principal, rate, y));
   const maxV = Math.max(...values), minV = Math.min(...values);
-  const xOf = (y) => m.left + ((y - 1) / 49) * iw;
+  const xOf = (y) => m.left + ((y - 1) / (MAX_TERM_YEARS - 1)) * iw;
   const yOf = (v) => m.top + ih - ((v - minV) / (maxV - minV || 1)) * ih;
 
   const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Cuota mensual según el plazo' });
@@ -462,13 +464,13 @@ function renderPlazoChart(principal, rate, currentYears) {
   const cx = xOf(currentYears);
   const cy = yOf(monthlyPayment(principal, rate, currentYears));
   svg.appendChild(svgEl('circle', { cx, cy, r: 5, class: 'marker' }));
-  const tag = currentYears > 42
+  const tag = currentYears > MAX_TERM_YEARS - 8
     ? svgEl('text', { x: cx - 8, y: cy - 8, class: 'tick', 'text-anchor': 'end' })
     : svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
   tag.textContent = `${currentYears} años · ${eur.format(monthlyPayment(principal, rate, currentYears))}`;
   svg.appendChild(tag);
 
-  for (const y of [1, 10, 20, 30, 40, 50]) {
+  for (const y of [1, 10, 20, 30]) {
     const t = svgEl('text', { x: xOf(y), y: H - 12, class: 'tick', 'text-anchor': 'middle' });
     t.textContent = `${y}`;
     svg.appendChild(t);
@@ -508,7 +510,7 @@ function renderWealthChart(terms, best) {
   const affordable = terms.filter((t) => t.affordable);
   const maxV = Math.max(...affordable.map((t) => t.netWealth), 0);
   const minV = Math.min(...affordable.map((t) => t.netWealth), 0);
-  const xOf = (y) => m.left + ((y - 1) / 49) * iw;
+  const xOf = (y) => m.left + ((y - 1) / (MAX_TERM_YEARS - 1)) * iw;
   const yOf = (v) => m.top + ih - ((v - minV) / (maxV - minV || 1)) * ih;
 
   const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Patrimonio neto según el plazo' });
@@ -533,14 +535,14 @@ function renderWealthChart(terms, best) {
   if (best) {
     const cx = xOf(best.years), cy = yOf(best.netWealth);
     svg.appendChild(svgEl('circle', { cx, cy, r: 5, class: 'marker' }));
-    const tag = best.years > 42
+    const tag = best.years > MAX_TERM_YEARS - 8
       ? svgEl('text', { x: cx - 8, y: cy - 8, class: 'tick', 'text-anchor': 'end' })
       : svgEl('text', { x: cx + 8, y: cy - 8, class: 'tick', 'text-anchor': 'start' });
     tag.textContent = `${best.years} años`;
     svg.appendChild(tag);
   }
 
-  for (const y of [1, 10, 20, 30, 40, 50]) {
+  for (const y of [1, 10, 20, 30]) {
     const t = svgEl('text', { x: xOf(y), y: H - 12, class: 'tick', 'text-anchor': 'middle' });
     t.textContent = `${y}`;
     svg.appendChild(t);
@@ -564,11 +566,11 @@ function renderComparator(principal, rate, currentYears) {
       <td>${t.affordable ? 'Sí' : 'No'}</td>
     </tr>`;
   }).join('');
-  const be = breakEvenReturn(principal, rate, budget, horizon, currentYears, 50);
+  const be = breakEvenReturn(principal, rate, budget, horizon, currentYears, MAX_TERM_YEARS);
   let beText;
-  if (currentYears === 50) beText = 'tu plazo ya es el máximo.';
+  if (currentYears === MAX_TERM_YEARS) beText = 'tu plazo ya es el máximo.';
   else if (be === null) beText = 'no hay cruce en el rango 0–30 % neto.';
-  else beText = `${pctFmt.format(be)} % neto anual (plazo ${currentYears} vs 50 años); por encima, alargar compensa.`;
+  else beText = `${pctFmt.format(be)} % neto anual (plazo ${currentYears} vs ${MAX_TERM_YEARS} años); por encima, alargar compensa.`;
   document.getElementById('best-summary').innerHTML =
     `Plazo óptimo: <b>${best ? `${best.years} años` : '—'}</b> · ` +
     `patrimonio neto ${best ? eur.format(best.netWealth) : '—'}.<br>` +
