@@ -248,6 +248,8 @@ export const eur = new Intl.NumberFormat('es-ES', {
 });
 
 export const pct = new Intl.NumberFormat('es-ES', {
+  style: 'unit',
+  unit: 'percent',
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
@@ -1213,7 +1215,7 @@ export const monthlyPaymentQuestion: Question = {
       { label: 'Cuota mensual', value: eur.format(summary.monthlyPayment) },
       { label: 'Intereses totales', value: eur.format(summary.totalInterest) },
       { label: 'Total pagado', value: eur.format(summary.totalPaid) },
-      { label: '% intereses', value: `${pct.format(summary.interestPct)} %` },
+      { label: '% intereses', value: pct.format(summary.interestPct) },
     ]);
     renderTable(
       table,

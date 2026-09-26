@@ -29,12 +29,19 @@ function renderContent(): void {
 
 renderCommonInputs(common, store);
 
+let repaintTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleRepaint(): void {
+  if (repaintTimer !== undefined) clearTimeout(repaintTimer);
+  repaintTimer = setTimeout(() => {
+    const question = questions.find((q) => q.id === activeId());
+    if (question) {
+      content.innerHTML = '';
+      question.render(content, { store });
+    }
+  }, 120);
+}
+
 onRouteChange(renderContent);
-store.subscribe(() => {
-  const question = questions.find((q) => q.id === activeId());
-  if (question) {
-    content.innerHTML = '';
-    question.render(content, { store });
-  }
-});
+store.subscribe(() => scheduleRepaint());
 renderContent();

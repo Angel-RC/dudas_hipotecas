@@ -1,3 +1,4 @@
+import { MAX_TERM_YEARS } from '../calc/mortgage';
 import type { State, StateKey, Store } from '../state';
 import { validate } from '../state';
 
@@ -5,7 +6,7 @@ type Field = { key: StateKey; label: string; min: number; max?: number; step: nu
 
 const FIELDS: Field[] = [
   { key: 'principal', label: 'Importe a financiar (€)', min: 1, step: 1000 },
-  { key: 'years', label: 'Plazo (años)', min: 1, max: 30, step: 1 },
+  { key: 'years', label: 'Plazo (años)', min: 1, max: MAX_TERM_YEARS, step: 1 },
   { key: 'rate', label: 'Interés anual TIN (%)', min: 0, max: 20, step: 0.05 },
 ];
 
