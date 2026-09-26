@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { eur, pct } from '../src/format';
 
 const norm = (s: string) => s.replace(/[\u00A0\u202F]/g, ' ');
