@@ -12,7 +12,9 @@
     "lint": "biome check .",
     "format": "biome format --write ."
   },
-  "dependencies": {},
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "autoprefixer": "^10.4.20",
