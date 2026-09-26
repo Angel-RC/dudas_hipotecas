@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aggregateByYear, buildSchedule } from '../src/calc/mortgage';
 import { questions } from '../src/questions';
-import { compositionSeries } from '../src/questions/composition';
+import { compositionSeries, compositionTooltip } from '../src/questions/composition';
 import { createStore } from '../src/state';
 
 const { renderChartMock } = vi.hoisted(() => ({ renderChartMock: vi.fn() }));
@@ -28,6 +28,20 @@ describe('compositionSeries', () => {
     expect(series.balance[29]).toBeCloseTo(0, 6);
     expect(series.principal.reduce((a, v) => a + v, 0)).toBeCloseTo(150000, 1);
     expect(series.interest.reduce((a, v) => a + v, 0)).toBeCloseTo(77666.18, 1);
+  });
+});
+
+describe('compositionTooltip', () => {
+  it('muestra el importe y el porcentaje de la cuota anual de cada año', () => {
+    const series = compositionSeries(aggregateByYear(buildSchedule(150000, 3, 30)));
+    const tip = compositionTooltip(series, 0);
+    expect(tip.title).toContain('Año 1');
+    expect(tip.title).toContain('7588,87');
+    expect(tip.principal).toContain('3131,70');
+    expect(tip.principal).toContain('41,3');
+    expect(tip.interest).toContain('4457,17');
+    expect(tip.interest).toContain('58,7');
+    expect(tip.balance).toContain('146.868,30');
   });
 });
 

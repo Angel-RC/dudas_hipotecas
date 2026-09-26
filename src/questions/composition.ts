@@ -1,4 +1,5 @@
 import { type YearRow, aggregateByYear, buildSchedule } from '../calc/mortgage';
+import { eur, pct } from '../format';
 import { validate } from '../state';
 import { renderChart } from '../ui/chart';
 import type { Question } from './types';
@@ -22,6 +23,17 @@ export function compositionSeries(years: YearRow[]): CompositionSeries {
     principal: years.map((y) => y.principal),
     interest: years.map((y) => y.interest),
     balance: years.map((y) => y.balance),
+  };
+}
+
+export function compositionTooltip(series: CompositionSeries, index: number) {
+  const total = series.principal[index] + series.interest[index];
+  const share = (value: number) => (total > 0 ? (value / total) * 100 : 0);
+  return {
+    title: `Año ${series.labels[index]} · Cuota anual ${eur.format(total)}`,
+    principal: `Principal: ${eur.format(series.principal[index])} (${pct.format(share(series.principal[index]))})`,
+    interest: `Intereses: ${eur.format(series.interest[index])} (${pct.format(share(series.interest[index]))})`,
+    balance: `Capital pendiente: ${eur.format(series.balance[index])}`,
   };
 }
 
@@ -80,6 +92,23 @@ export const compositionQuestion: Question = {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              title: (items) =>
+                items.length > 0 ? compositionTooltip(series, items[0].dataIndex).title : '',
+              label: (item) => {
+                const tip = compositionTooltip(series, item.dataIndex);
+                if (item.dataset.label === 'Principal') return tip.principal;
+                if (item.dataset.label === 'Intereses') return tip.interest;
+                return tip.balance;
+              },
+            },
+          },
+        },
         scales: {
           y: { stacked: true, title: { display: true, text: 'Cuota anual (€)' } },
           y1: {
