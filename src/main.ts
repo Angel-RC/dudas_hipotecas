@@ -2,6 +2,7 @@ import './style.css';
 import { questions } from './questions';
 import { getRoute, navigate, onRouteChange } from './router';
 import { createStore } from './state';
+import { renderCommonInputs } from './ui/inputs';
 import { renderLayout } from './ui/layout';
 import { renderSidebar } from './ui/sidebar';
 
@@ -26,7 +27,7 @@ function renderContent(): void {
   else content.innerHTML = '<p class="text-muted">Próximamente.</p>';
 }
 
-common.textContent = '';
+renderCommonInputs(common, store);
 
 onRouteChange(renderContent);
 store.subscribe(() => {
