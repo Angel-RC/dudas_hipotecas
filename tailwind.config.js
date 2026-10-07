@@ -4,15 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: '#f6f7f9',
+        canvas: '#f5f6f7',
         panel: '#ffffff',
-        ink: '#1c2430',
-        muted: '#6b7686',
-        line: '#dde3ea',
-        accent: '#2f6df6',
-        interest: '#f0713a',
-        balance: '#7a3df0',
-        danger: '#c0392b',
+        ink: '#2D373D',
+        muted: '#526570',
+        line: '#DDE3E6',
+        accent: '#DF0027',
+        interest: '#526570',
+        balance: '#77868D',
+        danger: '#DF0027',
+      },
+      fontFamily: {
+        sans: ['DM Sans', 'Helvetica', 'Arial', 'sans-serif'],
       },
     },
   },

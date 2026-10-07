@@ -6,7 +6,7 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
       ${cards
         .map(
           (c) => `
-        <div class="min-w-0 py-1">
+        <div class="min-w-0 rounded-3xl bg-panel p-5 shadow-sm">
           <span class="mb-1 block text-xs text-muted">${c.label}</span>
           <span class="block text-xl font-bold tabular-nums">${c.value}</span>
         </div>`,

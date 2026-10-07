@@ -1,5 +1,5 @@
 import { buildSchedule, compareTerms, monthlyPayment } from '../calc/mortgage';
-import { eur } from '../format';
+import { eur, numberWithGrouping, numberWithoutGrouping, parseLocalizedNumber } from '../format';
 import { validate } from '../state';
 import { renderChart } from '../ui/chart';
 import type { Question } from './types';
@@ -34,12 +34,13 @@ export const investmentQuestion: Question = {
       </p>
       <div class="mb-5 grid gap-4 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm font-semibold">Presupuesto mensual total (hipoteca + inversión, €)
-          <input data-investment-budget type="number" min="1" step="50" value="${settings.budget}"
-            class="rounded-lg border border-line px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-accent">
+          <input data-investment-budget type="text" inputmode="decimal" data-grouped-number autocomplete="off"
+            value="${Number.isFinite(settings.budget) ? numberWithGrouping.format(settings.budget) : ''}"
+            class="rounded-xl border border-line bg-white px-4 py-3 text-right tabular-nums font-normal focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20">
         </label>
         <label class="flex flex-col gap-1 text-sm font-semibold">Rentabilidad neta anual esperada (%)
           <input data-investment-return type="number" min="0" max="30" step="0.25" value="${settings.netReturnPct}"
-            class="rounded-lg border border-line px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-accent">
+            class="rounded-xl border border-line bg-white px-4 py-3 text-right tabular-nums font-normal focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20">
         </label>
       </div>
       <p data-investment-error class="mb-4 text-sm text-danger"></p>
@@ -50,33 +51,33 @@ export const investmentQuestion: Question = {
           El patrimonio neto resta la deuda que todavía quede al llegar al horizonte.
         </p>
         <dl class="mb-6 grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Plazo recomendado</dt>
             <dd data-best-term class="text-2xl font-bold"></dd>
           </div>
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Cuota hipotecaria mensual</dt>
             <dd data-best-monthly-payment class="text-xl font-semibold"></dd>
           </div>
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Inversión mensual mientras pagas la hipoteca</dt>
             <dd data-best-monthly-investment class="text-xl font-semibold"></dd>
           </div>
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Inversión acumulada al final del horizonte</dt>
             <dd data-best-invested class="text-xl font-semibold"></dd>
           </div>
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Deuda pendiente al final del horizonte</dt>
             <dd data-best-outstanding-debt class="text-xl font-semibold"></dd>
           </div>
-          <div>
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
             <dt class="text-sm text-muted">Patrimonio neto (inversión menos deuda)</dt>
             <dd data-best-net-wealth class="text-xl font-bold text-accent"></dd>
           </div>
         </dl>
         <p data-current-term-summary class="mb-5 text-sm text-muted"></p>
-        <div data-investment-chart class="h-96 p-1 sm:p-2"></div>
+        <div data-investment-chart class="h-96 rounded-3xl bg-panel p-4 shadow-sm md:p-6"></div>
       </section>`;
 
     const budgetInput = must(container.querySelector<HTMLInputElement>('[data-investment-budget]'));
@@ -92,7 +93,7 @@ export const investmentQuestion: Question = {
     }
 
     function updateResults(): void {
-      const budget = Number(budgetInput.value);
+      const budget = parseLocalizedNumber(budgetInput.value);
       const netReturnPct = Number(returnInput.value);
       rememberedSettings = { budget, netReturnPct };
 
@@ -162,8 +163,8 @@ export const investmentQuestion: Question = {
             {
               label: 'Patrimonio neto al final del horizonte',
               data: comparison.terms.map((term) => (term.affordable ? term.netWealth : Number.NaN)),
-              borderColor: '#2f6df6',
-              backgroundColor: '#2f6df6',
+              borderColor: '#DF0027',
+              backgroundColor: '#DF0027',
               pointRadius: comparison.terms.map((term) => (term.years === best.years ? 6 : 3)),
               tension: 0.2,
             },
@@ -172,6 +173,7 @@ export const investmentQuestion: Question = {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          color: '#526570',
           plugins: {
             tooltip: {
               callbacks: {
@@ -180,16 +182,35 @@ export const investmentQuestion: Question = {
             },
           },
           scales: {
-            x: { title: { display: true, text: 'Plazo de la hipoteca' } },
+            x: {
+              title: { display: true, text: 'Plazo de la hipoteca', color: '#2D373D' },
+              ticks: { color: '#526570' },
+            },
             y: {
-              title: { display: true, text: 'Patrimonio neto al horizonte (€)' },
-              ticks: { callback: (value) => eur.format(Number(value)) },
+              title: {
+                display: true,
+                text: 'Patrimonio neto al horizonte (€)',
+                color: '#2D373D',
+              },
+              grid: { color: '#DDE3E6' },
+              ticks: {
+                color: '#526570',
+                callback: (value) => eur.format(Number(value)),
+              },
             },
           },
         },
       });
     }
 
+    budgetInput.addEventListener('focus', () => {
+      const budget = parseLocalizedNumber(budgetInput.value);
+      budgetInput.value = Number.isFinite(budget) ? numberWithoutGrouping.format(budget) : '';
+    });
+    budgetInput.addEventListener('blur', () => {
+      const budget = parseLocalizedNumber(budgetInput.value);
+      if (Number.isFinite(budget)) budgetInput.value = numberWithGrouping.format(budget);
+    });
     budgetInput.addEventListener('input', updateResults);
     returnInput.addEventListener('input', updateResults);
     updateResults();

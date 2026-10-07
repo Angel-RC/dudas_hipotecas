@@ -5,9 +5,9 @@ import { renderChart } from '../ui/chart';
 import type { Question } from './types';
 
 const COLORS = {
-  principal: '#2f6df6',
-  interest: '#f0713a',
-  balance: '#7a3df0',
+  principal: '#DF0027',
+  interest: '#526570',
+  balance: '#77868D',
 };
 
 export type CompositionSeries = {
@@ -55,7 +55,7 @@ export const compositionQuestion: Question = {
         Al principio casi todo lo que pagas son intereses; al final, casi todo es principal.
         La línea muestra el capital pendiente.
       </p>
-      <div data-chart class="h-96 p-1 sm:p-2"></div>`;
+      <div data-chart class="h-96 rounded-3xl bg-panel p-4 shadow-sm md:p-6"></div>`;
     const chartContainer = container.querySelector<HTMLElement>('[data-chart]');
     if (!chartContainer) throw new Error('No se encontró el contenedor de la gráfica');
     renderChart(chartContainer, {
@@ -91,6 +91,7 @@ export const compositionQuestion: Question = {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        color: '#526570',
         interaction: { mode: 'index', intersect: false },
         plugins: {
           tooltip: {
@@ -109,10 +110,16 @@ export const compositionQuestion: Question = {
           },
         },
         scales: {
-          y: { stacked: true, title: { display: true, text: 'Cuota anual (€)' } },
+          y: {
+            stacked: true,
+            title: { display: true, text: 'Cuota anual (€)', color: '#2D373D' },
+            ticks: { color: '#526570' },
+            grid: { color: '#DDE3E6' },
+          },
           y1: {
             position: 'right',
-            title: { display: true, text: 'Capital pendiente (€)' },
+            title: { display: true, text: 'Capital pendiente (€)', color: '#2D373D' },
+            ticks: { color: '#526570' },
             grid: { drawOnChartArea: false },
           },
         },

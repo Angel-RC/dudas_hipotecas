@@ -61,6 +61,11 @@ describe('pregunta de hipoteca e inversión', () => {
       throw new Error('faltan controles o resultados');
     }
 
+    budget.value = '1.000';
+    budget.dispatchEvent(new Event('input'));
+    expect(error.textContent).toBe('');
+    expect(results.hidden).toBe(false);
+
     budget.value = '1';
     budget.dispatchEvent(new Event('input'));
     expect(error.textContent).not.toBe('');

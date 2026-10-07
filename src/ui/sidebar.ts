@@ -1,6 +1,7 @@
 import type { Question } from '../questions/types';
 
-const BUTTON_BASE_CLASS = 'rounded-lg px-3 py-2 text-left text-sm transition-colors';
+const BUTTON_BASE_CLASS =
+  'rounded-full px-4 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
 
 function must<T>(value: T | null | undefined): T {
   if (value === null || value === undefined) throw new Error('Elemento no encontrado');
@@ -30,7 +31,9 @@ export function renderSidebar(
 }
 
 function activeButtonClass(active: boolean): string {
-  return active ? 'bg-white font-semibold shadow-sm' : 'text-muted hover:bg-white';
+  return active
+    ? 'bg-accent font-semibold text-white shadow-sm'
+    : 'text-muted hover:bg-white hover:text-accent';
 }
 
 export function setActiveSidebarItem(nav: HTMLElement, activeId: string): void {

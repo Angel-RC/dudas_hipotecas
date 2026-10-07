@@ -36,10 +36,10 @@ describe('compositionTooltip', () => {
     const series = compositionSeries(aggregateByYear(buildSchedule(150000, 3, 30)));
     const tip = compositionTooltip(series, 0);
     expect(tip.title).toContain('Año 1');
-    expect(tip.title).toContain('7588,87');
-    expect(tip.principal).toContain('3131,70');
+    expect(tip.title).toContain('7.588,87');
+    expect(tip.principal).toContain('3.131,70');
     expect(tip.principal).toContain('41,3');
-    expect(tip.interest).toContain('4457,17');
+    expect(tip.interest).toContain('4.457,17');
     expect(tip.interest).toContain('58,7');
     expect(tip.balance).toContain('146.868,30');
   });

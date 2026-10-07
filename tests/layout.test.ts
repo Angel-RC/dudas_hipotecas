@@ -22,6 +22,12 @@ describe('layout', () => {
   it('crea sidebar, panel común y contenido', () => {
     const root = document.createElement('div');
     const { sidebar, common, content } = renderLayout(root);
+    expect(root.querySelector('[data-page-intro] h2')?.textContent).toBe(
+      'Tu hipoteca, de un vistazo',
+    );
+    expect(root.querySelector('[data-page-intro] p')?.textContent).toContain(
+      'Explora sus principales datos',
+    );
     expect(sidebar).toBeTruthy();
     expect(common).toBeTruthy();
     expect(content).toBeTruthy();

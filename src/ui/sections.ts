@@ -20,7 +20,7 @@ export function renderQuestionSections(
     element.className = 'scroll-mt-8 py-10 first:pt-0';
 
     const heading = document.createElement('h2');
-    heading.className = 'mb-6 text-2xl font-bold tracking-tight';
+    heading.className = 'mb-6 text-3xl font-semibold tracking-tight';
     heading.textContent = question.title;
     const content = document.createElement('div');
     content.dataset.questionContent = '';

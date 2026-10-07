@@ -7,6 +7,8 @@ export function destroyCharts(container: HTMLElement): void {
 }
 
 export function renderChart(container: HTMLElement, config: ChartConfiguration): void {
+  Chart.defaults.font.family = 'DM Sans, Helvetica, Arial, sans-serif';
+  Chart.defaults.color = '#526570';
   destroyCharts(container);
   container.innerHTML = '<canvas></canvas>';
   const canvas = container.querySelector('canvas');
