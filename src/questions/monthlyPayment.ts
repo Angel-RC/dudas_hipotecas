@@ -19,7 +19,7 @@ export const monthlyPaymentQuestion: Question = {
     const cards = document.createElement('div');
     const table = document.createElement('div');
     table.className = 'mt-4';
-    container.innerHTML = '<h2 class="mb-3 text-lg font-semibold">Cuota mensual y coste total</h2>';
+    container.innerHTML = '';
     container.append(cards, table);
     renderCards(cards, [
       { label: 'Cuota mensual', value: eur.format(summary.monthlyPayment) },

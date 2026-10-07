@@ -1,47 +1,77 @@
 import './style.css';
 import { questions } from './questions';
-import { getRoute, navigate, onRouteChange } from './router';
+import { getRoute, navigate, onRouteChange, replaceRoute } from './router';
 import { createStore } from './state';
 import { renderCommonInputs } from './ui/inputs';
 import { renderLayout } from './ui/layout';
-import { renderSidebar } from './ui/sidebar';
+import { activeSectionId, renderQuestionSections, repaintQuestionSections } from './ui/sections';
+import { renderSidebar, setActiveSidebarItem } from './ui/sidebar';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('No se encontró #app');
 
 const store = createStore();
 const { sidebar, common, content } = renderLayout(app);
+const questionSections = renderQuestionSections(content, questions, { store });
+const sectionElements = questionSections.map(({ element }) => element);
+const sectionById = new Map(
+  questionSections.map(({ question, element }) => [question.id, element]),
+);
 
-function activeId(): string {
-  const id = getRoute();
-  if (questions.some((q) => q.id === id)) return id;
-  return questions[0]?.id ?? '';
+function resolveSectionId(id: string): string {
+  if (sectionById.has(id)) return id;
+  return questionSections[0]?.question.id ?? '';
 }
 
-function renderContent(): void {
-  const id = activeId();
-  renderSidebar(sidebar, questions, id, (next) => navigate(next));
-  content.innerHTML = '';
-  const question = questions.find((q) => q.id === id);
-  if (question) question.render(content, { store });
-  else content.innerHTML = '<p class="text-muted">Próximamente.</p>';
+const requestedRoute = getRoute();
+const initialSectionId = resolveSectionId(requestedRoute);
+if (initialSectionId && requestedRoute !== initialSectionId) replaceRoute(initialSectionId);
+
+function scrollToSection(id: string, behavior: ScrollBehavior): void {
+  sectionById.get(id)?.scrollIntoView({ behavior, block: 'start' });
 }
+
+let activeId = initialSectionId;
+renderSidebar(sidebar, questions, activeId, (id) => {
+  if (getRoute() === id) scrollToSection(id, 'smooth');
+  else navigate(id);
+});
 
 renderCommonInputs(common, store);
+
+function handleRouteChange(id: string): void {
+  const resolvedId = resolveSectionId(id);
+  if (!resolvedId) return;
+  if (resolvedId !== id) replaceRoute(resolvedId);
+  activeId = resolvedId;
+  setActiveSidebarItem(sidebar, activeId);
+  scrollToSection(activeId, 'smooth');
+}
+
+function updateActiveSection(): void {
+  const visibleId = activeSectionId(sectionElements, window.innerHeight * 0.35);
+  if (!visibleId || visibleId === activeId) return;
+  activeId = visibleId;
+  setActiveSidebarItem(sidebar, activeId);
+  if (getRoute() !== activeId) replaceRoute(activeId);
+}
+
+onRouteChange(handleRouteChange);
+window.addEventListener('scroll', updateActiveSection, { passive: true });
+window.addEventListener('resize', updateActiveSection);
+
+if (requestedRoute && sectionById.has(requestedRoute)) {
+  scrollToSection(requestedRoute, 'auto');
+}
+updateActiveSection();
 
 let repaintTimer: ReturnType<typeof setTimeout> | undefined;
 
 function scheduleRepaint(): void {
   if (repaintTimer !== undefined) clearTimeout(repaintTimer);
   repaintTimer = setTimeout(() => {
-    const question = questions.find((q) => q.id === activeId());
-    if (question) {
-      content.innerHTML = '';
-      question.render(content, { store });
-    }
+    repaintQuestionSections(questionSections, { store });
   }, 120);
 }
 
-onRouteChange(renderContent);
 store.subscribe(() => scheduleRepaint());
-renderContent();

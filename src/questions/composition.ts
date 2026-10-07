@@ -51,12 +51,11 @@ export const compositionQuestion: Question = {
       aggregateByYear(buildSchedule(state.principal, state.rate, state.years)),
     );
     container.innerHTML = `
-      <h2 class="mb-3 text-lg font-semibold">Composición de la cuota</h2>
       <p class="mb-4 text-sm text-muted">
         Al principio casi todo lo que pagas son intereses; al final, casi todo es principal.
         La línea muestra el capital pendiente.
       </p>
-      <div data-chart class="h-80 rounded-xl border border-line bg-panel p-4"></div>`;
+      <div data-chart class="h-96 p-1 sm:p-2"></div>`;
     const chartContainer = container.querySelector<HTMLElement>('[data-chart]');
     if (!chartContainer) throw new Error('No se encontró el contenedor de la gráfica');
     renderChart(chartContainer, {

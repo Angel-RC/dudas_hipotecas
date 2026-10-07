@@ -76,7 +76,6 @@ export const amortizationQuestion: Question = {
     }).join('');
 
     container.innerHTML = `
-      <h2 class="mb-2 text-lg font-semibold">¿Me interesa amortizar?</h2>
       <p class="mb-4 text-sm text-muted">
         Indica cuánto quieres amortizar y cuándo. Comparamos los dos escenarios desde hoy,
         contando las cuotas previas a la amortización y el importe extra como devolución de principal.

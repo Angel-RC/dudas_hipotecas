@@ -6,6 +6,10 @@ export function navigate(id: string): void {
   window.location.hash = `#/${id}`;
 }
 
+export function replaceRoute(id: string): void {
+  window.history.replaceState(null, '', `#/${id}`);
+}
+
 export function onRouteChange(callback: (id: string) => void): () => void {
   const handler = () => callback(getRoute());
   window.addEventListener('hashchange', handler);

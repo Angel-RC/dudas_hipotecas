@@ -17,7 +17,6 @@ describe('pregunta de amortización', () => {
     const container = document.createElement('div');
     question.render(container, { store: createStore() });
 
-    expect(container.textContent).toContain('¿Me interesa amortizar?');
     expect(container.querySelector('[data-amortization-amount]')).not.toBeNull();
     expect(container.querySelector('[data-amortization-year]')).not.toBeNull();
     expect(container.querySelector('[data-amortization-mode]')).toBeNull();
