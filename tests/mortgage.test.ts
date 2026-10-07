@@ -4,6 +4,7 @@ import {
   aggregateByYear,
   breakEvenReturn,
   buildSchedule,
+  compareAmortizationAtYear,
   compareTerms,
   investDifference,
   monthlyNetReturn,
@@ -12,6 +13,59 @@ import {
 } from '../src/calc/mortgage';
 
 describe('motor de cálculo', () => {
+  it('compara las dos estrategias para amortizar hoy y desglosa el coste total', () => {
+    const comparison = compareAmortizationAtYear({
+      principal: 100000,
+      annualRatePct: 5,
+      years: 20,
+      amount: 10000,
+      year: 0,
+    });
+
+    expect(comparison.term.interestSaved).toBeGreaterThan(comparison.payment.interestSaved);
+    expect(comparison.term.monthlyPayment).toBeCloseTo(monthlyPayment(100000, 5, 20), 6);
+    expect(comparison.payment.monthlyPayment).toBeCloseTo(monthlyPayment(90000, 5, 20), 6);
+    expect(comparison.term.totalPaid).toBeCloseTo(100000 + comparison.term.totalInterest, 6);
+    expect(comparison.payment.totalPaid).toBeCloseTo(100000 + comparison.payment.totalInterest, 6);
+    expect(comparison.term.principalPct + comparison.term.interestPct).toBeCloseTo(100, 10);
+    expect(comparison.payment.principalPct + comparison.payment.interestPct).toBeCloseTo(100, 10);
+    expect(comparison.term.monthsToPayoff).toBeLessThan(comparison.payment.monthsToPayoff);
+  });
+
+  it('amortiza al comienzo del año elegido y rechaza un importe superior al saldo', () => {
+    const input = {
+      principal: 100000,
+      annualRatePct: 5,
+      years: 20,
+      amount: 10000,
+    };
+    const baseline = buildSchedule(input.principal, input.annualRatePct, input.years);
+    const comparison = compareAmortizationAtYear({ ...input, year: 1 });
+
+    expect(comparison.balanceAtAmortization).toBeCloseTo(baseline[11].balance, 8);
+    expect(comparison.term.totalInterest).toBeGreaterThan(
+      compareAmortizationAtYear({ ...input, year: 0 }).term.totalInterest,
+    );
+    expect(() => compareAmortizationAtYear({ ...input, year: 19, amount: 100000 })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('no ahorra intereses con tipo 0% y refleja una amortización que cancela el saldo', () => {
+    const comparison = compareAmortizationAtYear({
+      principal: 12000,
+      annualRatePct: 0,
+      years: 2,
+      amount: 12000,
+      year: 0,
+    });
+
+    expect(comparison.term.interestSaved).toBe(0);
+    expect(comparison.payment.interestSaved).toBe(0);
+    expect(comparison.term.monthlyPayment).toBe(0);
+    expect(comparison.payment.monthsToPayoff).toBe(0);
+  });
+
   it('expone MAX_TERM_YEARS = 30', () => {
     expect(MAX_TERM_YEARS).toBe(30);
   });

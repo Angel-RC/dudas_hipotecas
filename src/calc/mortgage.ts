@@ -221,3 +221,161 @@ export function breakEvenReturn(
   }
   return (lo + hi) / 2;
 }
+
+export type AmortizationAtYearInput = {
+  principal: number;
+  annualRatePct: number;
+  years: number;
+  amount: number;
+  year: number;
+};
+
+export type AmortizationScenario = {
+  monthlyPayment: number;
+  interestSaved: number;
+  totalInterest: number;
+  totalPaid: number;
+  principalPct: number;
+  interestPct: number;
+  monthsToPayoff: number;
+};
+
+export type AmortizationSummary = Pick<
+  AmortizationScenario,
+  | 'monthlyPayment'
+  | 'totalInterest'
+  | 'totalPaid'
+  | 'principalPct'
+  | 'interestPct'
+  | 'monthsToPayoff'
+>;
+
+export type AmortizationComparison = {
+  balanceAtAmortization: number;
+  baseline: AmortizationSummary;
+  term: AmortizationScenario;
+  payment: AmortizationScenario;
+};
+
+function remainingLoan(
+  principal: number,
+  annualRatePct: number,
+  months: number,
+  payment: number,
+): { interest: number; months: number } {
+  let balance = principal;
+  let interestTotal = 0;
+  const rate = monthlyRate(annualRatePct);
+  let monthsPaid = 0;
+
+  while (monthsPaid < months && balance > 0) {
+    const interest = balance * rate;
+    interestTotal += interest;
+    const paymentDue = Math.min(payment, balance + interest);
+    balance = Math.max(balance - (paymentDue - interest), 0);
+    monthsPaid += 1;
+  }
+
+  return { interest: interestTotal, months: monthsPaid };
+}
+
+function makeAmortizationScenario(
+  principal: number,
+  totalInterest: number,
+  monthlyPayment: number,
+  monthsToPayoff: number,
+  baselineInterest: number,
+): AmortizationScenario {
+  const totalPaid = principal + totalInterest;
+  return {
+    monthlyPayment,
+    interestSaved: Math.max(baselineInterest - totalInterest, 0),
+    totalInterest,
+    totalPaid,
+    principalPct: totalPaid > 0 ? (principal / totalPaid) * 100 : 0,
+    interestPct: totalPaid > 0 ? (totalInterest / totalPaid) * 100 : 0,
+    monthsToPayoff,
+  };
+}
+
+export function compareAmortizationAtYear({
+  principal,
+  annualRatePct,
+  years,
+  amount,
+  year,
+}: AmortizationAtYearInput): AmortizationComparison {
+  const monthCount = Math.round(years * 12);
+  const elapsedMonths = Math.round(year * 12);
+  if (!Number.isInteger(year) || year < 0 || elapsedMonths >= monthCount) {
+    throw new RangeError('El año de amortización debe estar dentro del plazo pendiente.');
+  }
+  if (!(amount > 0)) throw new RangeError('El importe de amortización debe ser mayor que 0.');
+
+  const schedule = buildSchedule(principal, annualRatePct, years);
+  const balanceAtAmortization =
+    elapsedMonths === 0 ? principal : schedule[elapsedMonths - 1].balance;
+  if (amount > balanceAtAmortization) {
+    throw new RangeError('El importe no puede superar el saldo pendiente en el año elegido.');
+  }
+
+  const baselineInterest = schedule.reduce((total, month) => total + month.interest, 0);
+  const interestBeforeAmortization = schedule
+    .slice(0, elapsedMonths)
+    .reduce((total, month) => total + month.interest, 0);
+  const monthsAfterAmortization = monthCount - elapsedMonths;
+  const originalMonthlyPayment = monthlyPayment(principal, annualRatePct, years);
+  const balanceAfterAmortization = Math.max(balanceAtAmortization - amount, 0);
+  const termMonthlyPayment = balanceAfterAmortization > 0 ? originalMonthlyPayment : 0;
+
+  const termLoan = remainingLoan(
+    balanceAfterAmortization,
+    annualRatePct,
+    monthsAfterAmortization,
+    termMonthlyPayment,
+  );
+  const paymentAfterAmortization = monthlyPayment(
+    balanceAfterAmortization,
+    annualRatePct,
+    monthsAfterAmortization / 12,
+  );
+  const paymentLoan = remainingLoan(
+    balanceAfterAmortization,
+    annualRatePct,
+    monthsAfterAmortization,
+    paymentAfterAmortization,
+  );
+
+  const totalBaselineInterest = baselineInterest;
+  return {
+    balanceAtAmortization,
+    baseline: {
+      monthlyPayment: originalMonthlyPayment,
+      totalInterest: totalBaselineInterest,
+      totalPaid: principal + totalBaselineInterest,
+      principalPct:
+        principal + totalBaselineInterest > 0
+          ? (principal / (principal + totalBaselineInterest)) * 100
+          : 0,
+      interestPct:
+        principal + totalBaselineInterest > 0
+          ? (totalBaselineInterest / (principal + totalBaselineInterest)) * 100
+          : 0,
+      monthsToPayoff: monthCount,
+    },
+    term: makeAmortizationScenario(
+      principal,
+      interestBeforeAmortization + termLoan.interest,
+      termMonthlyPayment,
+      elapsedMonths + termLoan.months,
+      totalBaselineInterest,
+    ),
+    payment: makeAmortizationScenario(
+      principal,
+      interestBeforeAmortization + paymentLoan.interest,
+      paymentAfterAmortization,
+      elapsedMonths + paymentLoan.months,
+      totalBaselineInterest,
+    ),
+  };
+}
