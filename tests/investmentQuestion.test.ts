@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildSchedule, compareTerms } from '../src/calc/mortgage';
 import { eur } from '../src/format';
 import { questions } from '../src/questions';
-import { createStore } from '../src/state';
+import { DEFAULT_STATE, createStore } from '../src/state';
 
 const { renderChartMock } = vi.hoisted(() => ({ renderChartMock: vi.fn() }));
 
@@ -14,7 +14,7 @@ describe('pregunta de hipoteca e inversión', () => {
     expect(question).toBeDefined();
     if (!question) return;
 
-    const state = { principal: 100000, rate: 5, years: 10 };
+    const state = { ...DEFAULT_STATE, principal: 100000, rate: 5, years: 10 };
     const container = document.createElement('div');
     question.render(container, { store: createStore(state) });
 

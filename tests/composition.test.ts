@@ -29,6 +29,13 @@ describe('compositionSeries', () => {
     expect(series.principal.reduce((a, v) => a + v, 0)).toBeCloseTo(150000, 1);
     expect(series.interest.reduce((a, v) => a + v, 0)).toBeCloseTo(77666.18, 1);
   });
+
+  it('calcula los gastos anuales y prorratea el último año incompleto', () => {
+    const schedule = buildSchedule(150000, 3, 1.5);
+    const series = compositionSeries(aggregateByYear(schedule), 100, schedule.length);
+
+    expect(series.expenses).toEqual([1200, 600]);
+  });
 });
 
 describe('compositionTooltip', () => {
@@ -37,11 +44,24 @@ describe('compositionTooltip', () => {
     const tip = compositionTooltip(series, 0);
     expect(tip.title).toContain('Año 1');
     expect(tip.title).toContain('7.588,87');
+    expect(tip.title).not.toMatch(/gastos/i);
     expect(tip.principal).toContain('3.131,70');
     expect(tip.principal).toContain('41,3');
     expect(tip.interest).toContain('4.457,17');
     expect(tip.interest).toContain('58,7');
     expect(tip.balance).toContain('146.868,30');
+  });
+
+  it('incluye gastos fijos en el total anual y en los porcentajes', () => {
+    const schedule = buildSchedule(150000, 3, 30);
+    const series = compositionSeries(aggregateByYear(schedule), 100, schedule.length);
+    const tip = compositionTooltip(series, 0);
+
+    expect(tip.title).toContain('8.788,87');
+    expect(tip.principal).toContain('35,6');
+    expect(tip.interest).toContain('50,7');
+    expect(tip.expenses).toContain('1.200,00');
+    expect(tip.expenses).toContain('13,7');
   });
 });
 
@@ -50,19 +70,44 @@ describe('pregunta composición', () => {
     renderChartMock.mockClear();
   });
 
-  it('renderiza una gráfica con principal, intereses y capital pendiente', () => {
+  it('renderiza una gráfica con principal, intereses, gastos y capital pendiente', () => {
     const store = createStore();
+    store.set({ fixedExpensesMonthly: 100 });
     const container = document.createElement('div');
     compositionQuestion().render(container, { store });
     expect(renderChartMock).toHaveBeenCalledTimes(1);
     const config = renderChartMock.mock.calls[0][1] as {
-      data: { datasets: Array<{ label: string }> };
+      data: { datasets: Array<{ label: string; data: number[] }> };
+      options: { scales: { y: { title: { text: string } } } };
     };
     expect(config.data.datasets.map((d) => d.label)).toEqual([
       'Principal',
       'Intereses',
+      'Gastos',
       'Capital pendiente',
     ]);
+    expect(config.data.datasets[2].data[0]).toBe(1200);
+    expect(config.options.scales.y.title.text).toBe('Cuota anual + gastos (€)');
+  });
+
+  it('oculta gastos del texto y la gráfica cuando el importe es cero', () => {
+    const store = createStore();
+    const container = document.createElement('div');
+    const question = compositionQuestion();
+    question.render(container, { store });
+
+    const config = renderChartMock.mock.calls[0][1] as {
+      data: { datasets: Array<{ label: string }> };
+      options: { scales: { y: { title: { text: string } } } };
+    };
+    expect(question.summary).not.toMatch(/gastos/i);
+    expect(container.textContent).not.toMatch(/gastos/i);
+    expect(config.data.datasets.map((dataset) => dataset.label)).toEqual([
+      'Principal',
+      'Intereses',
+      'Capital pendiente',
+    ]);
+    expect(config.options.scales.y.title.text).toBe('Cuota anual (€)');
   });
 
   it('pide corregir los datos si son inválidos y no dibuja', () => {

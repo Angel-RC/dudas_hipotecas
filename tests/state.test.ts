@@ -4,6 +4,7 @@ import { DEFAULT_STATE, createStore, validate } from '../src/state';
 describe('validate', () => {
   it('acepta los valores por defecto', () => {
     expect(validate(DEFAULT_STATE)).toEqual({});
+    expect(DEFAULT_STATE.fixedExpensesMonthly).toBe(0);
   });
 
   it('rechaza importe no positivo o vacío (NaN)', () => {
@@ -21,6 +22,18 @@ describe('validate', () => {
     expect(validate({ ...DEFAULT_STATE, rate: -1 }).rate).toBeDefined();
     expect(validate({ ...DEFAULT_STATE, rate: 21 }).rate).toBeDefined();
     expect(validate({ ...DEFAULT_STATE, rate: Number.NaN }).rate).toBeDefined();
+  });
+
+  it('acepta gastos fijos no negativos y rechaza negativos o vacíos', () => {
+    expect(
+      validate({ ...DEFAULT_STATE, fixedExpensesMonthly: 125.5 }).fixedExpensesMonthly,
+    ).toBeUndefined();
+    expect(
+      validate({ ...DEFAULT_STATE, fixedExpensesMonthly: -1 }).fixedExpensesMonthly,
+    ).toBeDefined();
+    expect(
+      validate({ ...DEFAULT_STATE, fixedExpensesMonthly: Number.NaN }).fixedExpensesMonthly,
+    ).toBeDefined();
   });
 });
 

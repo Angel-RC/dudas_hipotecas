@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { compareAmortizationAtYear } from '../src/calc/mortgage';
-import { eur } from '../src/format';
+import { eur, pct } from '../src/format';
 import { questions } from '../src/questions';
 import { createStore } from '../src/state';
 
@@ -65,6 +65,8 @@ describe('pregunta de amortización', () => {
     ).not.toBeNull();
     expect(container.textContent).toContain('Principal');
     expect(container.textContent).toContain('Intereses');
+    expect(container.textContent).not.toMatch(/gastos/i);
+    expect(container.textContent).not.toContain('Intereses y gastos ahorrados');
     expect(renderChartMock).not.toHaveBeenCalled();
   });
 
@@ -102,5 +104,64 @@ describe('pregunta de amortización', () => {
     expect(termInterest.textContent).not.toBe(interestSavedAtToday);
     expect(dateSummary.textContent).not.toBe(initialDateSummary);
     expect(currentInterestSaved.textContent).toBe(eur.format(0));
+  });
+
+  it('incluye los gastos acumulados en los intereses totales y el total pagado', () => {
+    const question = questions.find((item) => item.id === 'amortizacion');
+    if (!question) throw new Error('falta la pregunta de amortización');
+
+    const store = createStore();
+    store.set({ fixedExpensesMonthly: 100 });
+    const container = document.createElement('div');
+    question.render(container, { store });
+    const amountInput = container.querySelector<HTMLInputElement>('[data-amortization-amount]');
+    const yearInput = container.querySelector<HTMLSelectElement>('[data-amortization-year]');
+    if (!amountInput || !yearInput) throw new Error('faltan controles de amortización');
+    amountInput.value = '15.000';
+    amountInput.dispatchEvent(new Event('input'));
+    yearInput.value = '1';
+    yearInput.dispatchEvent(new Event('change'));
+
+    const comparison = compareAmortizationAtYear({
+      principal: 150000,
+      annualRatePct: 3,
+      years: 30,
+      amount: 15000,
+      year: 1,
+    });
+    const scenarios = [
+      ['current', comparison.baseline],
+      ['term', comparison.term],
+      ['payment', comparison.payment],
+    ] as const;
+
+    for (const [mode, scenario] of scenarios) {
+      const expenses = 100 * scenario.monthsToPayoff;
+      const totalPaid = scenario.totalPaid + expenses;
+      const totalInterestAndExpenses = scenario.totalInterest + expenses;
+      expect(
+        container.querySelector(`[data-amortization-value="${mode}-total-paid"]`)?.textContent,
+      ).toBe(eur.format(totalPaid));
+      expect(
+        container.querySelector(`[data-amortization-value="${mode}-principal-composition"]`)
+          ?.textContent,
+      ).toBe(`${eur.format(150000)} (${pct.format((150000 / totalPaid) * 100)})`);
+      expect(
+        container.querySelector(`[data-amortization-value="${mode}-total-interest"]`)?.textContent,
+      ).toBe(
+        `${eur.format(totalInterestAndExpenses)} (${pct.format(
+          (totalInterestAndExpenses / totalPaid) * 100,
+        )})`,
+      );
+    }
+
+    for (const [mode, scenario] of scenarios) {
+      const expensesSaved = 100 * (comparison.baseline.monthsToPayoff - scenario.monthsToPayoff);
+      expect(
+        container.querySelector(`[data-amortization-value="${mode}-expenses-saved"]`)?.textContent,
+      ).toBe(eur.format(expensesSaved));
+    }
+    expect(container.textContent).toContain('Gastos ahorrados');
+    expect(container.textContent).not.toContain('Intereses y gastos ahorrados');
   });
 });

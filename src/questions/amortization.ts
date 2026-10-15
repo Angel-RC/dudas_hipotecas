@@ -33,11 +33,12 @@ function scenarioMarkup(
   mode: 'current' | 'term' | 'payment',
   title: string,
   description: string,
+  hasExpenses: boolean,
 ): string {
   const totalPaidLabel =
     mode === 'current'
-      ? 'Total que pagarías sin amortizar'
-      : 'Total que pagarás, incluida la amortización';
+      ? `Total que pagarías sin amortizar${hasExpenses ? ', incluidos los gastos' : ''}`
+      : `Total que pagarás, incluida la amortización${hasExpenses ? ' y los gastos' : ''}`;
   return `
     <article data-amortization-scenario="${mode}" class="min-w-0 py-1">
       <h3 class="mb-1 text-lg font-semibold">${title}</h3>
@@ -51,6 +52,15 @@ function scenarioMarkup(
           <dt class="text-sm text-muted">Intereses ahorrados</dt>
           <dd data-amortization-value="${mode}-interest-saved" class="text-xl font-semibold text-accent"></dd>
         </div>
+        ${
+          hasExpenses
+            ? `
+          <div class="rounded-3xl bg-panel p-5 shadow-sm">
+            <dt class="text-sm text-muted">Gastos ahorrados</dt>
+            <dd data-amortization-value="${mode}-expenses-saved" class="text-xl font-semibold text-accent"></dd>
+          </div>`
+            : ''
+        }
         <div class="rounded-3xl bg-panel p-5 shadow-sm">
           <dt class="text-sm text-muted">${totalPaidLabel}</dt>
           <dd data-amortization-value="${mode}-total-paid" class="text-xl font-semibold"></dd>
@@ -61,7 +71,7 @@ function scenarioMarkup(
             <dd data-amortization-value="${mode}-principal-composition" class="text-right font-medium"></dd>
           </div>
           <div class="mt-2 flex justify-between gap-3 text-sm">
-            <dt>Intereses totales</dt>
+            <dt>${hasExpenses ? 'Intereses y gastos totales' : 'Intereses totales'}</dt>
             <dd data-amortization-value="${mode}-total-interest" class="text-right font-medium"></dd>
           </div>
           <div class="mt-2 flex justify-between gap-3 text-sm">
@@ -79,6 +89,7 @@ export const amortizationQuestion: Question = {
   summary: 'Compara cuánto pagarías al reducir plazo o cuota con una amortización parcial.',
   render(container, { store }) {
     const state = store.get();
+    const hasExpenses = state.fixedExpensesMonthly > 0;
     const monthCount = Math.round(state.years * 12);
     const maxYear = Math.max(0, Math.floor((monthCount - 1) / 12));
     rememberedSettings ??= { amount: Math.round(state.principal * 0.1), year: 0 };
@@ -93,7 +104,7 @@ export const amortizationQuestion: Question = {
       <p class="mb-4 text-sm text-muted">
         Indica cuánto quieres amortizar y cuándo. Comparamos tu situación actual con dos opciones,
         contando las cuotas previas a la amortización y el importe extra como devolución de principal.
-        Los porcentajes muestran qué parte del total pagado corresponde a principal e intereses.
+        Los porcentajes muestran qué parte del total pagado corresponde a principal e intereses${hasExpenses ? ' y gastos' : ''}.
       </p>
       <div class="mb-5 grid gap-4 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm font-semibold">Importe de la amortización (€)
@@ -112,11 +123,11 @@ export const amortizationQuestion: Question = {
       <p data-amortization-date-summary class="mb-4 text-sm text-muted"></p>
       <p data-global-error class="mb-4 text-sm text-danger"></p>
       <div data-amortization-results class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)_1px_minmax(0,1fr)]">
-        ${scenarioMarkup('current', 'Situación actual', 'Mantienes la cuota y no amortizas capital extra.')}
+        ${scenarioMarkup('current', 'Sin amortizar', 'Mantienes la cuota y no amortizas capital extra.', hasExpenses)}
         <div data-amortization-divider aria-hidden="true" class="border-t border-line lg:border-t-0 lg:border-l"></div>
-        ${scenarioMarkup('term', 'Reducir plazo', 'Mantienes la cuota actual y terminas antes.')}
+        ${scenarioMarkup('term', 'Reduciendo plazo', 'Mantienes la cuota actual y terminas antes.', hasExpenses)}
         <div data-amortization-divider aria-hidden="true" class="border-t border-line lg:border-t-0 lg:border-l"></div>
-        ${scenarioMarkup('payment', 'Reducir cuota', 'Mantienes la fecha final y pagas menos cada mes.')}
+        ${scenarioMarkup('payment', 'Reduciendo cuota', 'Mantienes la fecha final y pagas menos cada mes.', hasExpenses)}
       </div>`;
 
     const amountInput = must(
@@ -184,16 +195,25 @@ export const amortizationQuestion: Question = {
         ['term', comparison.term, comparison.term.interestSaved],
         ['payment', comparison.payment, comparison.payment.interestSaved],
       ] as const) {
+        const expenses = state.fixedExpensesMonthly * scenario.monthsToPayoff;
+        const expensesSaved =
+          state.fixedExpensesMonthly *
+          (comparison.baseline.monthsToPayoff - scenario.monthsToPayoff);
+        const totalPaid = scenario.totalPaid + expenses;
+        const totalInterestAndExpenses = scenario.totalInterest + expenses;
         setValue(`${mode}-monthly-payment`, eur.format(scenario.monthlyPayment));
         setValue(`${mode}-interest-saved`, eur.format(interestSaved));
-        setValue(`${mode}-total-paid`, eur.format(scenario.totalPaid));
+        if (hasExpenses) setValue(`${mode}-expenses-saved`, eur.format(expensesSaved));
+        setValue(`${mode}-total-paid`, eur.format(totalPaid));
         setValue(
           `${mode}-principal-composition`,
-          `${eur.format(state.principal)} (${pct.format(scenario.principalPct)})`,
+          `${eur.format(state.principal)} (${pct.format((state.principal / totalPaid) * 100)})`,
         );
         setValue(
           `${mode}-total-interest`,
-          `${eur.format(scenario.totalInterest)} (${pct.format(scenario.interestPct)})`,
+          `${eur.format(totalInterestAndExpenses)} (${pct.format(
+            (totalInterestAndExpenses / totalPaid) * 100,
+          )})`,
         );
         setValue(`${mode}-payoff-duration`, duration(scenario.monthsToPayoff));
       }

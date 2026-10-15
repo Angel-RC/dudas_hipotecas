@@ -4,6 +4,7 @@ export type State = {
   principal: number;
   years: number;
   rate: number;
+  fixedExpensesMonthly: number;
 };
 
 export type StateKey = keyof State;
@@ -13,6 +14,7 @@ export const DEFAULT_STATE: State = {
   principal: 150000,
   years: 30,
   rate: 3,
+  fixedExpensesMonthly: 0,
 };
 
 export function validate(state: State): Errors {
@@ -22,6 +24,9 @@ export function validate(state: State): Errors {
     errors.years = `El plazo debe estar entre 1 y ${MAX_TERM_YEARS} años.`;
   }
   if (!(state.rate >= 0 && state.rate <= 20)) errors.rate = 'El interés debe estar entre 0 y 20.';
+  if (!(state.fixedExpensesMonthly >= 0)) {
+    errors.fixedExpensesMonthly = 'Los gastos fijos no pueden ser negativos.';
+  }
   return errors;
 }
 

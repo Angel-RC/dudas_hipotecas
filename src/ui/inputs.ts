@@ -16,6 +16,13 @@ const FIELDS: Field[] = [
   { key: 'principal', label: 'Importe a financiar (€)', min: 1, step: 1000, grouped: true },
   { key: 'years', label: 'Plazo (años)', min: 1, max: MAX_TERM_YEARS, step: 1 },
   { key: 'rate', label: 'Interés anual TIN (%)', min: 0, max: 20, step: 0.05 },
+  {
+    key: 'fixedExpensesMonthly',
+    label: 'Gastos fijos (€ al mes)',
+    min: 0,
+    step: 0.01,
+    grouped: true,
+  },
 ];
 
 function updateErrors(container: HTMLElement, store: Store): void {
@@ -36,7 +43,7 @@ export function renderCommonInputs(container: HTMLElement, store: Store): void {
   const state = store.get();
   container.innerHTML = `
     <h2 class="mb-4 text-xl font-semibold">Información de mi hipoteca</h2>
-    <div class="grid gap-4 sm:grid-cols-3">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       ${FIELDS.map((field) => {
         const type = field.grouped ? 'text' : 'number';
         const value = field.grouped

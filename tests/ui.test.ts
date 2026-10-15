@@ -104,7 +104,7 @@ describe('chart', () => {
 });
 
 describe('inputs comunes', () => {
-  it('renderiza los tres campos y actualiza el store', () => {
+  it('renderiza los campos y actualiza el store al editar gastos fijos', () => {
     const el = document.createElement('div');
     const store = createStore();
     renderCommonInputs(el, store);
@@ -121,6 +121,14 @@ describe('inputs comunes', () => {
     expect(store.get().principal).toBe(200000);
     input.dispatchEvent(new Event('blur'));
     expect(input.value).toBe('200.000');
+
+    const fixedExpensesInput = must(
+      el.querySelector<HTMLInputElement>('input[data-key="fixedExpensesMonthly"]'),
+    );
+    expect(fixedExpensesInput.value).toBe('0');
+    fixedExpensesInput.value = '125,50';
+    fixedExpensesInput.dispatchEvent(new Event('input'));
+    expect(store.get().fixedExpensesMonthly).toBe(125.5);
   });
 
   it('trata un campo vacío como inválido (NaN) y muestra el error', () => {
@@ -132,5 +140,18 @@ describe('inputs comunes', () => {
     input.dispatchEvent(new Event('input'));
     expect(Number.isNaN(store.get().rate)).toBe(true);
     expect(must(el.querySelector('[data-error="rate"]')).textContent).not.toBe('');
+  });
+
+  it('muestra error cuando los gastos fijos están vacíos', () => {
+    const el = document.createElement('div');
+    const store = createStore();
+    renderCommonInputs(el, store);
+    const input = must(
+      el.querySelector<HTMLInputElement>('input[data-key="fixedExpensesMonthly"]'),
+    );
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    expect(Number.isNaN(store.get().fixedExpensesMonthly)).toBe(true);
+    expect(must(el.querySelector('[data-error="fixedExpensesMonthly"]')).textContent).not.toBe('');
   });
 });
