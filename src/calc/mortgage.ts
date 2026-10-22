@@ -379,3 +379,79 @@ export function compareAmortizationAtYear({
     ),
   };
 }
+
+export type BonusComparisonInput = {
+  principal: number;
+  years: number;
+  baseRatePct: number;
+  bonusedRatePct: number;
+  fixedExpensesMonthly: number;
+  bankProductsMonthly: number;
+  externalProductsMonthly: number;
+};
+
+export type BonusOption = {
+  monthlyPayment: number;
+  monthlyTotal: number;
+  annualTotal: number;
+  principal: number;
+  interest: number;
+  expenses: number;
+  totalPaid: number;
+};
+
+export type BonusComparison = {
+  unbonused: BonusOption;
+  bonused: BonusOption;
+  totalSaving: number;
+  monthlySaving: number;
+};
+
+function bonusOption(
+  principal: number,
+  annualRatePct: number,
+  years: number,
+  expensesMonthly: number,
+): BonusOption {
+  const summary = summarize(principal, annualRatePct, years);
+  const expenses = expensesMonthly * summary.months.length;
+  const monthlyTotal = summary.monthlyPayment + expensesMonthly;
+  return {
+    monthlyPayment: summary.monthlyPayment,
+    monthlyTotal,
+    annualTotal: monthlyTotal * 12,
+    principal,
+    interest: summary.totalInterest,
+    expenses,
+    totalPaid: summary.totalPaid + expenses,
+  };
+}
+
+export function compareBonusedProducts({
+  principal,
+  years,
+  baseRatePct,
+  bonusedRatePct,
+  fixedExpensesMonthly,
+  bankProductsMonthly,
+  externalProductsMonthly,
+}: BonusComparisonInput): BonusComparison {
+  const unbonused = bonusOption(
+    principal,
+    baseRatePct,
+    years,
+    fixedExpensesMonthly + externalProductsMonthly,
+  );
+  const bonused = bonusOption(
+    principal,
+    bonusedRatePct,
+    years,
+    fixedExpensesMonthly + bankProductsMonthly,
+  );
+  return {
+    unbonused,
+    bonused,
+    totalSaving: unbonused.totalPaid - bonused.totalPaid,
+    monthlySaving: unbonused.monthlyTotal - bonused.monthlyTotal,
+  };
+}
