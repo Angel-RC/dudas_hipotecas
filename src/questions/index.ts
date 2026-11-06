@@ -3,6 +3,7 @@ import { bonusQuestion } from './bonus';
 import { compositionQuestion } from './composition';
 import { investmentQuestion } from './investment';
 import { monthlyPaymentQuestion } from './monthlyPayment';
+import { switchMortgageQuestion } from './switchMortgage';
 import type { Question } from './types';
 
 export const questions: Question[] = [
@@ -10,5 +11,6 @@ export const questions: Question[] = [
   compositionQuestion,
   amortizationQuestion,
   bonusQuestion,
+  switchMortgageQuestion,
   investmentQuestion,
 ];

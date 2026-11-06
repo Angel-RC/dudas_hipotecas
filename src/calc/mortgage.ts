@@ -455,3 +455,95 @@ export function compareBonusedProducts({
     monthlySaving: unbonused.monthlyTotal - bonused.monthlyTotal,
   };
 }
+
+/** Capital que queda por pagar cuando faltan `remainingMonths` mensualidades de una hipoteca de `years`. */
+export function pendingBalance(
+  principal: number,
+  annualRatePct: number,
+  years: number,
+  remainingMonths: number,
+): number {
+  const total = Math.round(years * 12);
+  const elapsed = total - Math.round(remainingMonths);
+  if (elapsed <= 0) return principal;
+  if (elapsed >= total) return 0;
+  return buildSchedule(principal, annualRatePct, years)[elapsed - 1].balance;
+}
+
+export type FeeUnit = 'eur' | 'pct';
+
+export function switchFeeAmount(principal: number, value: number, unit: FeeUnit): number {
+  return unit === 'pct' ? (principal * value) / 100 : value;
+}
+
+export type SwitchComparisonInput = {
+  principal: number;
+  years: number;
+  currentRatePct: number;
+  newRatePct: number;
+  fixedExpensesMonthly: number;
+  fee: number;
+};
+
+export type SwitchOption = {
+  monthlyPayment: number;
+  principal: number;
+  interest: number;
+  fee: number;
+  expenses: number;
+  totalPaid: number;
+};
+
+export type SwitchComparison = {
+  current: SwitchOption;
+  switched: SwitchOption;
+  totalSaving: number;
+  monthlySaving: number;
+  /** Meses de cuota más baja necesarios para recuperar la comisión; null si no se recupera. */
+  breakEvenMonths: number | null;
+};
+
+function switchOption(
+  principal: number,
+  annualRatePct: number,
+  years: number,
+  fixedExpensesMonthly: number,
+  fee: number,
+): SwitchOption {
+  const summary = summarize(principal, annualRatePct, years);
+  const expenses = fixedExpensesMonthly * summary.months.length;
+  return {
+    monthlyPayment: summary.monthlyPayment,
+    principal,
+    interest: summary.totalInterest,
+    fee,
+    expenses,
+    totalPaid: summary.totalPaid + expenses + fee,
+  };
+}
+
+export function compareMortgageSwitch({
+  principal,
+  years,
+  currentRatePct,
+  newRatePct,
+  fixedExpensesMonthly,
+  fee,
+}: SwitchComparisonInput): SwitchComparison {
+  const current = switchOption(principal, currentRatePct, years, fixedExpensesMonthly, 0);
+  const switched = switchOption(principal, newRatePct, years, fixedExpensesMonthly, fee);
+  const monthlySaving = current.monthlyPayment - switched.monthlyPayment;
+  const months = Math.round(years * 12);
+  let breakEvenMonths: number | null = null;
+  if (monthlySaving > 0) {
+    const needed = Math.ceil(fee / monthlySaving);
+    if (needed <= months) breakEvenMonths = needed;
+  }
+  return {
+    current,
+    switched,
+    totalSaving: current.totalPaid - switched.totalPaid,
+    monthlySaving,
+    breakEvenMonths,
+  };
+}
